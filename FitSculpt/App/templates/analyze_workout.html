@@ -1,0 +1,242 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+
+<style>
+    /* Background and Overlay */
+    .background-image {
+        background-image: url("{% static 'assets/images/bestronger.jpg' %}");
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+        height: 100vh;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+    }
+    .background-image::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        z-index: -1;
+    }
+
+    /* Content Overlay */
+    .content-overlay {
+        position: relative;
+        z-index: 1;
+        padding-top: 180px;
+        min-height: 100vh;
+    }
+
+    /* Button Container */
+    .button-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    /* Button Item */
+    .button-item {
+        position: relative;
+        width: 300px;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+        text-align: center;
+        background-color: white;
+        padding: 20px;
+    }
+    .button-item:hover {
+        transform: scale(1.05);
+    }
+
+    /* Form Styling */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-control-file {
+        padding: 10px;
+        border: 2px dashed #ccc;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border: none;
+        padding: 10px 30px;
+        font-weight: bold;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    /* Footer */
+    footer {
+        text-align: center;
+        padding: 20px;
+        background-color: #d8d6d6;
+        color: white;
+        position: relative;
+        width: 100%;
+        z-index: 2;
+    }
+
+    h1 {
+        color: white;
+        padding-top: 10px;
+        text-align: center;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .loading-spinner {
+        width: 80px;
+        height: 80px;
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #ff5722;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    .loading-text {
+        color: white;
+        font-size: 24px;
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-progress {
+        width: 300px;
+        color: white;
+        text-align: center;
+        margin-top: 10px;
+    }
+</style>
+
+<main>
+    <section class="section" id="contact-us">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        <div class="container-fluid content-overlay">
+            <div class="background-image"></div>
+
+            <div class="row justify-content-center">
+                <div class="button-container col-lg-6 col-md-8 col-xs-12">
+                    <div class="button-item">
+                        <h2 class="text-dark mb-4">Injury Prevention through Workout Form Analysis</h2>
+                        <div class="loading-overlay" id="loadingOverlay">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text">Analyzing your workout video...</div>
+
+                            <div class="loading-progress">This may take a few moments. Please don't close the page.</div>
+                        </div>
+                        <form method="post" enctype="multipart/form-data" id="workoutForm">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="workout_video">Upload Workout Video</label>
+                                <input type="file" class="form-control-file" id="workout_video" name="workout_video" accept="video/*" required>
+                                <small class="form-text text-muted">Upload a video of your workout for form analysis</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Analyze Workout</button>
+                        </form>
+
+                        {% if error %}
+                        <div class="alert alert-danger mt-3">
+                            {{ error }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <p>&copy; 2024 FITSCULPT. All rights reserved.</p>
+</footer>
+
+<script>
+document.getElementById('workoutForm').addEventListener('submit', function(e) {
+    // Show loading overlay when form is submitted
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    // Optional: Add some random tips while loading
+    const loadingTexts = [
+        "Analyzing your form...",
+        "Checking movement patterns...",
+        "Identifying potential issues...",
+        "Almost there...",
+        "Processing video data..."
+    ];
+    
+    let currentIndex = 0;
+    const loadingTextElement = document.querySelector('.loading-text');
+    
+    // Change the loading text every 3 seconds
+    const textInterval = setInterval(() => {
+        loadingTextElement.textContent = loadingTexts[currentIndex];
+        currentIndex = (currentIndex + 1) % loadingTexts.length;
+    }, 3000);
+    
+    // If the form submission takes too long (30 seconds), show a message
+    setTimeout(() => {
+        const progressElement = document.querySelector('.loading-progress');
+        progressElement.textContent = "This is taking longer than usual. Please continue to wait...";
+    }, 30000);
+});
+
+// Optional: Add file size validation
+document.getElementById('workout_video').addEventListener('change', function(e) {
+    const file = this.files[0];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    if (file.size > maxSize) {
+        alert('File is too large. Please select a video under 50MB.');
+        this.value = ''; // Clear the file input
+    }
+});
+</script>
+
+{% endblock %} 

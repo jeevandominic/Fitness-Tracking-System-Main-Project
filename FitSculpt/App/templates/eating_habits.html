@@ -1,0 +1,164 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eating Habits</title>
+    <style>
+        body {
+            background-color: #f8f9fa; /* Light background color */
+            margin-top: 100px; /* Space for header */
+            font-family: Arial, sans-serif; /* Default font for the page */
+        }
+        h2, h3 {
+            color: #343a40; /* Dark color for headings */
+            text-align: center; /* Center headings */
+        }
+        .card {
+            border: 1px solid #ced4da; /* Light gray border for cards */
+            border-radius: 8px; /* Rounded corners */
+            transition: transform 0.2s; /* Smooth scaling effect on hover */
+            padding: 20px; /* Increased padding inside the card */
+            margin: 10px; /* Space between cards */
+            background-color: white; /* Background color of cards */
+            flex: 1 0 23%; /* Allow cards to grow, with a base width of about 23% */
+            max-width: 23%; /* Limit card width to fit four in a row */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Add slight shadow for better visibility */
+            height: 200px; /* Fixed height for cards */
+        }
+        .card:hover {
+            transform: scale(1.05); /* Scale up on hover */
+        }
+        .card-container {
+            display: flex; /* Use flexbox for layout */
+            flex-wrap: wrap; /* Allow cards to wrap onto the next line */
+            justify-content: center; /* Center cards within the container */
+        }
+        .btn-primary {
+            background-color: #007bff; /* Primary button color */
+            border: none; /* Remove border */
+            color: white; /* Text color for button */
+            padding: 10px 20px; /* Padding for the button */
+            border-radius: 5px; /* Rounded corners for the button */
+            cursor: pointer; /* Pointer cursor on hover */
+            margin-top: 10px; /* Margin on top */
+        }
+        .btn-primary:hover {
+            background-color: #0056b3; /* Darker shade on hover */
+        }
+        footer {
+            text-align: center; /* Center footer text */
+            margin-top: 20px; /* Space above footer */
+            color: #6c757d; /* Light gray color for footer text */
+        }
+        .schedule-button {
+            position: absolute; /* Positioning it absolutely */
+            top: 90px; /* Adjust distance from the top */
+            left: 20px; /* Adjust distance from the left */
+            background-color: #007bff; /* Background color */
+            color: white; /* Text color */
+            padding: 10px 20px; /* Padding for the button */
+            border-radius: 5px; /* Rounded corners */
+            text-decoration: none; /* Remove underline */
+            transition: background-color 0.3s; /* Smooth background color transition */
+        }
+        .schedule-button:hover {
+            background-color: #0056b3; /* Darker shade on hover */
+        }
+        .btn-group {
+    display: flex; /* Use flexbox for button group layout */
+    justify-content: center; /* Center the buttons */
+    margin: 20px 0; /* Space around the button group */
+}
+
+.btn-secondary {
+    background-color: #c57116; /* Default button color */
+    text-decoration: none;
+    border: none; /* Remove border */
+    color: white; /* Text color */
+    padding: 10px 20px; /* Padding for the button */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    margin: 0 5px; /* Space between buttons */
+    transition: background-color 0.3s; /* Smooth background color transition */
+}
+
+.btn-secondary:hover {
+    background-color: #c57116; /* Darker shade on hover */
+}
+
+.btn-primary {
+    background-color: #c57116; /* Primary button color */
+    border: none; /* Remove border */
+    color: white; /* Text color for button */
+    padding: 10px 20px; /* Padding for the button */
+    border-radius: 5px; /* Rounded corners for the button */
+    cursor: pointer; /* Pointer cursor on hover */
+    margin-top: 10px; /* Margin on top */
+}
+
+.btn-primary:hover {
+    background-color: #c57116; /* Darker shade on hover */
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="mb-4">Choose Your Interests in Diet</h2>
+        <center><p>Don't Forgot to Submit After Selecting the Diet Preferences</p></center>
+        <center><p>Click On the button to show the diets</p></center>
+    
+        <!-- Intake Time Filter -->
+        <div class="btn-group" role="group" aria-label="Intake Time">
+            <a href="?intake=1" class="btn btn-secondary">Breakfast</a>
+            <a href="?intake=2" class="btn btn-secondary">Lunch</a>
+            <a href="?intake=3" class="btn btn-secondary">Snack</a>
+            <a href="?intake=4" class="btn btn-secondary">Dinner</a>
+        </div>
+    
+        <form method="post">
+            {% csrf_token %}
+            
+            <input type="hidden" name="intake_no" value="{{ intake_no }}"> <!-- Include intake_no in the form -->
+        
+            <div class="card-container">
+                {% if user_food_type == 'veg' %}
+                    {% for habit in veg_habits %}
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ habit.habit }}</h5>
+                            <p class="card-text">Vegetarian</p>
+                            <!-- Do not retain the 'checked' state after form submission -->
+                            <input type="checkbox" name="selected_habits" value="{{ habit.habit_no }}"> Select
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% elif user_food_type == 'non_veg' %}
+                    {% for habit in non_veg_habits %}
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ habit.habit }}</h5>
+                            <p class="card-text">Non-Vegetarian</p>
+                            <!-- Do not retain the 'checked' state after form submission -->
+                            <input type="checkbox" name="selected_habits" value="{{ habit.habit_no }}"> Select
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        
+            <center><button type="submit" class="btn btn-primary">Submit</button></center>
+        </form>
+        
+        
+    </div>
+    <footer>
+        <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+    </footer>
+</body>
+</html>
+{% endblock %}

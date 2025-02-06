@@ -1,0 +1,123 @@
+{% load static %}
+{% block content %}
+{% include 'fm_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Manager Nutritions</title>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-top: 80px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #495057;
+            margin-top: 20px;
+            font-size: 1.8em;
+        }
+
+        /* Flexbox container for nutrition cards */
+        .nutrition-card-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 0 40px;
+            margin-top: 20px;
+        }
+
+        /* Each nutrition card */
+        .nutrition-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 23%; /* Adjust to ensure 4 items fit horizontally */
+            text-align: center;
+            transition: transform 0.2s;
+            box-sizing: border-box; /* Ensure padding is included within width */
+        }
+
+        .nutrition-card:hover {
+            transform: scale(1.05);
+        }
+
+        .nutrition-card h5 {
+            margin: 10px 0;
+            color: #343a40;
+        }
+
+        /* Footer styling */
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* Content area aligned with the sidebar and header */
+        .main-content-wrapper {
+            display: flex;
+        }
+
+        .main-content-area {
+            flex: 1;
+            padding-left: 270px; /* Adjust to match sidebar width */
+            padding-top: 0px; /* Adjust to match header height */
+        }
+
+        @media (max-width: 1200px) {
+            .nutrition-card {
+                width: 45%; /* On smaller screens, show 2 items per row */
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nutrition-card {
+                width: 100%; /* On mobile screens, show 1 item per row */
+            }
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;margin-left: 240px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content-wrapper">
+        <div class="main-content-area">
+            <h1>Nutritions</h1>
+
+            <h2>Nutrition Structure</h2>
+            <div class="nutrition-card-container">
+                {% for nutrition in nutritions %}
+                <div class="nutrition-card">
+                    <div class="nutrition-card-body">
+                        <h5 class="nutrition-card-subtitle">Food Name: {{ nutrition.food.food_name }}</h5>
+                        <p class="nutrition-card-text">{{ nutrition.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>
+{% endblock %}

@@ -1,0 +1,192 @@
+{% load static %}
+{% include 'header1.html' %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #010306;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        button {
+            background-color: #b35138;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #a04030;
+        }
+
+        .alert {
+            color: green;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .payment-alert {
+            color: red;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            
+        }
+        .container {
+            margin-top: 80px;  /* Add margin to separate from the header */
+        }
+        /* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plans</title>
+</head>
+<body>
+    <div class="container">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <h1>Available Plans</h1>
+        <h2>Please Select a valid Plan</h2>
+
+        {% if user_has_plan %}            
+            <div class="alert">
+                <p>Your Current Plan is: {{ current_plan_name }}</p>
+                You have an active plan. 
+                <form action="{% url 'delete_plan' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit">Delete & Change Current Plan</button>
+                </form>
+            </div>
+        {% endif %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Plan Name</th>
+                    <th>Amount/30 days</th>
+                    <th>Description</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+<tr>
+    <td>{{ plan.plan_name }}</td>
+    <td>Rs.{{ plan.amount }}</td>
+    <td>{{ plan.description }}</td>
+    <td>
+        {% if user_has_plan %}
+            <button disabled>Selection Disabled</button><br><p>You have already selected a plan</p>
+        {% elif plan.plan_id == 4 and not is_child_plan_enabled %}
+            <button disabled>Not Eligible</button>
+        {% elif previous_plan_amount and plan.amount < previous_plan_amount %}
+            <button disabled>Cheaper Plans Disabled</button> 
+            <p>Because You have deactivated the Previous plan before expiry of 30 days<br>You can try again in 30 days to get the cheaper plan</p> <!-- Disable cheaper plans -->
+        {% else %}
+            <form action="{% url 'select_plan' %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="plan_id" value="{{ plan.plan_id }}">
+                <button type="submit">Select</button>
+            </form>
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
+
+            </tbody>
+            
+        </table>
+    </div>
+</body>
+</html>
+{% endblock %}

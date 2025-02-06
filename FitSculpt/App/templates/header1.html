@@ -1,0 +1,452 @@
+{% load static %}
+{% block content %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link href="https://fonts.googleapis.com/css?family=Poppins:100,100i,200,200i,300,300i,400,400i,500,500i,600,600i,700,700i,800,800i,900,900i&display=swap" rel="stylesheet">
+
+    <title>FITSCULPT</title>
+    <script src="{% static 'assets/js/jquery.min.js' %}"></script>
+    <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
+
+	<script type="text/javascript">
+        function preventBack() {
+            window.history.forward(); 
+        }
+          
+        setTimeout("preventBack()", 0);
+          
+        window.onunload = function () { null };
+    </script>
+<style>
+    /* General Style */
+    body {
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* Navigation Bar Styling */
+    .header-area {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 100;
+    }
+
+    .main-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 30px; /* Increased padding for a bigger header */
+        background-color: black;
+    }
+
+    /* Logo */
+    .logo {
+        font-size: 35px; /* Increased font size */
+        font-weight: bold;
+        color: white;
+        text-transform: uppercase;
+        text-decoration: none; /* Remove underline */
+    }
+
+    .logo em {
+        color: #ff5722; /* Orange color for SCULPT */
+        font-style: normal;
+        font-size: 40px; /* Increased font size for SCULPT */
+    }
+
+    /* Navigation Links */
+    .nav {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+    }
+
+    .nav li {
+        position: relative;
+        margin: 0 15px;
+    }
+
+    .nav a {
+        color: white;
+        font-size: 14px; /* Slightly increased font size for nav links */
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .nav a:hover {
+        color: #ff5722; /* Orange hover effect */
+    }
+
+    /* Dropdown Profile Menu */
+    .dropdown-menu {
+        display: none; /* Hidden by default */
+        background-color: black;
+        border: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        left: -70px;
+        min-width: 150px;
+        z-index: 9999;
+    }
+
+    .dropdown-menu a {
+        color: white;
+        font-size: 14px;
+        padding: 10px;
+        display: block;
+        white-space: nowrap;
+    }
+
+    .dropdown-menu a:hover {
+        background-color: #f0ebe9; /* Hover effect for dropdown */
+    }
+
+    /* Show dropdown when hovering over the parent list item */
+    .dropdown:hover .dropdown-menu {
+        display: block; /* Dropdown is shown on hover */
+    }
+
+    /* Logout Button */
+    .main-button a {
+        background-color: #ff5722;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 4px;
+        text-transform: uppercase;
+        transition: background-color 0.3s ease;
+    }
+
+    .main-button a:hover {
+        background-color: #e64a19; /* Darker orange on hover */
+    }
+
+    /* For smaller screens */
+    @media (max-width: 768px) {
+        .main-nav {
+            flex-direction: column;
+        }
+
+        .nav {
+            flex-direction: column;
+        }
+
+        .nav li {
+            margin: 10px 0;
+        }
+    }
+
+    /* Add this to your existing styles */
+    .message.error {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+        color: #856404;
+    }
+
+    /* Add this for better message formatting */
+    .message {
+        white-space: pre-line;  /* This will preserve line breaks in the response */
+    }
+</style>
+
+    </head>
+    
+    <body>
+        <header class="header-area header-sticky">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <nav class="main-nav" style="background-color:black;">
+                        <a href="" class="logo">FIT<em> SCULPT</em></a>
+                        <ul class="nav">
+                            <li class="scroll-to-section"><a href="{% url 'user_home' %}" class="">HOME</a></li>
+                            <li class="scroll-to-section dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">PROFILE<span class="dropdown-arrow">▼</span></a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'user_profile' %}" class=""><b>View Profile</b></a></li>
+
+                                </ul>
+                            </li>
+                            <li class="scroll-to-section dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">PLAN<span class="dropdown-arrow">▼</span></a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'plans' %}" class=""><b>View Plan</b></a></li>
+                                </ul>
+                            </li>
+
+                            <li class="scroll-to-section dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Workouts<span class="dropdown-arrow">▼</span></a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'workouts' %}" class=""><b>View Workouts</b></a></li>
+                                    <li><a href="{% url 'personal_workout' %}" class=""><b>Personal Workout</b></a></li>
+                                    <li><a href="{% url 'analyze_workout' %}" class=""><b>Injury Prevention Method</b></a></li>
+                                    <li><a href="{% url 'workout_correction' %}" class=""><b>real Time Form Correction</b></a></li>
+
+
+
+                                </ul>
+                            </li>
+                            
+                            <li class="scroll-to-section dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Nutrition<span class="dropdown-arrow">▼</span></a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'nutrition' %}" class=""><b>View Nutrition</b></a></li>
+                                    <li><a href="{% url 'personal_nutrition' %}" class=""><b>Nutrition Guidance</b></a></li>
+
+                                </ul>
+                            </li>
+                            <li class="scroll-to-section dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Mental Fitness<span class="dropdown-arrow">▼</span></a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'mental_fitness' %}" class=""><b>View Mental Fitness Page</b></a></li>
+                                        <li><a href="{% url 'view_scheduled_class_mha' %}" class=""><b>Live Session</b></a></li>
+                                        <li><a href="{% url 'predict_fitness' %}" class=""><b> Mind Body Synergy</b></a></li>
+
+                                </ul>
+                            </li>
+                            <li class="scroll-to-section"><a href="{% url 'goal' %}" class="">GOAL</a></li>
+                            <li class="scroll-to-section"><a href="{% url 'progress' %}" class="">PROGRESS</a></li>
+                            <li class="scroll-to-section"><a href="{% url 'feedback' %}" class="">Feedback</a></li>
+                            <li class="main-button" id="logout"><a href="{% url 'logout' %}">Logout</a></li>
+                        </ul>
+                    </nav>
+                    
+                </div>
+            </div>
+        </div>
+    </header>
+	{% endblock %}
+
+<!-- Remove the existing chatbot nav link and add this before </body> -->
+<div id="chat-widget" class="chat-widget">
+    <button id="chat-toggle" class="chat-toggle">
+        <i class="fas fa-comments"></i>
+    </button>
+    
+    <div id="chat-window" class="chat-window" style="display: none;">
+        <div class="chat-header">
+            <h4>Fitness Assistant</h4>
+            <button id="close-chat" class="close-button">×</button>
+        </div>
+        <div id="chatBox" class="chat-box">
+            <div class="message bot-message">
+                Hello! I'm your fitness assistant. How can I help you with your fitness, diet, or mental wellness journey?
+            </div>
+        </div>
+        <div class="message-input">
+            <input type="text" id="userInput" placeholder="Type your message..." class="form-control">
+            <button onclick="sendMessage()" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<style>
+    .chat-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+
+    .chat-toggle {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: #ff5722;
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        transition: transform 0.3s ease;
+    }
+
+    .chat-toggle:hover {
+        transform: scale(1.1);
+    }
+
+    .chat-toggle i {
+        font-size: 24px;
+    }
+
+    .chat-window {
+        position: fixed;
+        bottom: 90px;
+        right: 20px;
+        width: 350px;
+        height: 500px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chat-header {
+        background-color: #ff5722;
+        color: white;
+        padding: 15px;
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .chat-box {
+        flex-grow: 1;
+        padding: 15px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        max-width: 80%;
+    }
+
+    .user-message {
+        background-color: #007bff;
+        color: white;
+        margin-left: auto;
+    }
+
+    .bot-message {
+        background-color: white;
+        color: #333;
+        border: 1px solid #ddd;
+    }
+
+    .message-input {
+        padding: 15px;
+        display: flex;
+        gap: 10px;
+        background-color: white;
+        border-top: 1px solid #ddd;
+        border-radius: 0 0 10px 10px;
+    }
+
+    .message-input input {
+        flex-grow: 1;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+    }
+
+    .message-input button {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<script>
+document.getElementById('chat-toggle').addEventListener('click', function() {
+    const chatWindow = document.getElementById('chat-window');
+    chatWindow.style.display = chatWindow.style.display === 'none' ? 'flex' : 'none';
+});
+
+document.getElementById('close-chat').addEventListener('click', function() {
+    document.getElementById('chat-window').style.display = 'none';
+});
+
+document.getElementById('userInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+function sendMessage() {
+    const userInput = document.getElementById('userInput');
+    const message = userInput.value.trim();
+    
+    if (message) {
+        // Add user message to chat
+        addMessage(message, 'user-message');
+        
+        // Send message to server
+        fetch('{% url "chatbot" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `message=${encodeURIComponent(message)}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                console.error('Error:', data.error);
+                addMessage('Sorry, I encountered an error: ' + data.response, 'bot-message error');
+            } else {
+                addMessage(data.response, 'bot-message');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            addMessage('Sorry, I encountered a network error. Please try again.', 'bot-message error');
+        });
+        
+        // Clear input
+        userInput.value = '';
+    }
+}
+
+function addMessage(message, className) {
+    const chatBox = document.getElementById('chatBox');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${className}`;
+    messageDiv.textContent = message;
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// Function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>

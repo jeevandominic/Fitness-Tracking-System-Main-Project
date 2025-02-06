@@ -1,0 +1,215 @@
+{% load static %}
+{% block content %}
+{% include 'admin_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Plans</title>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-top: 80px; /* Margin to push it below the header */
+            margin-bottom: 20px;
+        }
+
+        form {
+            max-width: 600px; /* Center the form */
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px; /* Rounded corners */
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical; /* Allow vertical resizing only */
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            width: 100%; /* Full width */
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        a {
+            display: inline-block;
+            text-align: center;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: #0056b3;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .alert {
+            color: red;
+            margin: 15px 0;
+        }
+        .plan_container{
+            margin-left: 270px;
+        }
+        /* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+    </style>
+    <script>
+        // Function to validate input fields
+        function validateInput(input, errorElement) {
+            // Allow any character including letters, spaces, digits, and special characters
+            if (input.value.trim() === '') {
+                errorElement.textContent = 'This field cannot be empty.';
+            } else {
+                errorElement.textContent = ''; // Clear the error
+            }
+        }
+
+        // Attach real-time validation
+        window.onload = function() {
+            const planNameInput = document.getElementById('plan_name');
+            const descriptionInput = document.getElementById('description');
+            const nameError = document.getElementById('nameError');
+            const descriptionError = document.getElementById('descriptionError');
+
+            // Add event listeners for real-time validation
+            planNameInput.addEventListener('input', function() {
+                validateInput(planNameInput, nameError);
+            });
+
+            descriptionInput.addEventListener('input', function() {
+                validateInput(descriptionInput, descriptionError);
+            });
+
+            // Validate on form submission as well
+            const form = document.querySelector('form');
+            form.onsubmit = function() {
+                validateInput(planNameInput, nameError);
+                validateInput(descriptionInput, descriptionError);
+                return nameError.textContent === '' && descriptionError.textContent === '';
+            };
+        };
+    </script>
+</head>
+<body>
+    <div class="plan_container">
+    <h1>Add Plan</h1>
+    <form action="" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="plan_name">Plan Name:</label>
+        <input type="text" id="plan_name" name="plan_name" required>
+        <div id="nameError" class="alert"></div>
+
+        <label for="amount">Amount (in rupees):</label>
+        <input type="number" id="amount" name="amount" required>
+
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" required></textarea>
+        <div id="descriptionError" class="alert"></div>
+
+        <label for="service_no">Service Number:</label>
+        <input type="number" id="service_no" name="service_no" required>
+        {% if error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        <button type="submit">Add Plan</button>
+    </form>
+    <center><a href="{% url 'admin_plans' %}">Back to Plans</a></center>
+    <footer>
+        <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+    </footer>
+</div>
+</body>
+</html>
+{% endblock %}

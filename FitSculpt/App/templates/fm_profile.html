@@ -1,0 +1,233 @@
+{% load static %}
+{% include 'fm_header.html' %}
+{% block content %}
+<style>
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .profile-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        text-align: center;
+        position: relative;
+    }
+    .profile-card img {
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        margin-bottom: 20px;
+    }
+    .profile-card h2 {
+        margin-bottom: 10px;
+        font-size: 24px;
+        color: #333;
+    }
+    .profile-card p {
+        font-size: 16px;
+        color: #666;
+        margin: 5px 0;
+    }
+    .profile-card .btn {
+        background-color: #b35138;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        text-decoration: none;
+        margin: 10px 0;
+        display: inline-block;
+    }
+    .profile-card .btn:hover {
+        background-color: #b35138;
+    }
+    .edit-form {
+        display: none;
+        margin-top: 20px;
+    }
+    .edit-form.active {
+        display: block;
+    }
+    .edit-form input {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    .edit-form button {
+        background-color: #b35138;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        display: inline-block;
+    }
+    .edit-form button:hover {
+        background-color: #b35138;
+    }
+    body {
+        background-image: url("{% static 'assets/images/onemore.jpeg' %}");
+        background-repeat: no-repeat;
+        font-family: Arial, sans-serif;
+        background-size: cover;
+        background-position: center;
+        min-height: 100vh; /* Ensure full page height for the background image */
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .background {
+        flex-grow: 1;
+        padding: 20px;
+        margin-left: 290px; /* Same width as sidebar */
+        background-color: rgba(255, 255, 255, 0.5); /* Make content area slightly transparent */
+        min-height: calc(100vh - 100px); /* Full height minus the header */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    /* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+.scroll-to-enhance {
+    background-color: #b35138;
+    color: white; /* Ensures text stays white */
+    text-decoration: none; /* Removes underline from text */
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    display: inline-block;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    transition: all 0.3s ease; /* Smooth transition */
+}
+
+.scroll-to-enhance:hover {
+    background-color: #9f4632; /* Darken the button on hover */
+    color: white; /* Keep text white on hover */
+    text-decoration: none; /* Ensure no underline on hover */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* Enhanced shadow on hover */
+    transform: translateY(-3px); /* Slight lift on hover */
+}
+
+.scroll-to-enhance:active {
+    transform: translateY(1px); /* Button press effect */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Lessen the shadow on click */
+    color: white; /* Ensure text stays white on active click */
+    text-decoration: none; /* Ensure no underline on active click */
+}
+
+
+
+</style>
+<div class="background">
+<section class="section" id="profile">
+    <div class="container">
+        <div class="profile-card">
+
+            <h2>{{ tbl_fitness_manager.name }}</h2>
+            <a class="scroll-to-enhance" href="{% url 'fm_skills' %}">Enhanced Profile</a>
+            <p><strong>User Name:</strong> {{ tbl_fitness_manager.username }}</p>
+            <p><strong>Date Joined:</strong> {{ tbl_fitness_manager.date_joined }}</p>
+            
+            <a href="#" class="btn" id="edit-btn">Edit Profile</a>
+
+            <div class="edit-form" id="edit-form">
+                {% if form.errors %}
+                    <div class="error-message">
+                        <strong>Please correct the following errors:</strong>
+                        <ul>
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit">Update Profile</button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+</section>
+</div>
+<script>
+    document.getElementById('edit-btn').addEventListener('click', function(event) {
+        event.preventDefault();
+        var editForm = document.getElementById('edit-form');
+        if (editForm.classList.contains('active')) {
+            editForm.classList.remove('active');
+            this.textContent = 'Edit Profile';
+        } else {
+            editForm.classList.add('active');
+            this.textContent = 'Cancel';
+        }
+    });
+
+    // If there are any errors, keep the form open
+    const errorMessages = document.querySelectorAll('.error-message');
+    if (errorMessages.length > 0) {
+        document.getElementById('edit-form').classList.add('active');
+        document.getElementById('edit-btn').textContent = 'Cancel';
+    }
+</script>
+{% endblock %}

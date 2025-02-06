@@ -1,0 +1,193 @@
+{% load static %}
+{% block content %}
+{% include 'fm_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrition Advice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .content-wrapper {
+            display: flex;
+        }
+
+        /* Sidebar alignment and content area styling */
+        .content-area {
+            flex: 1;
+            padding-left: 240px; /* Adjust to the width of your sidebar */
+            padding-top: 70px; /* Adjust to align content below the header */
+            padding-right: 20px; /* Spacing for the right side */
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 40px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f9f9f9;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .select-button {
+            background-color: #b35138;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .select-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .select-button:hover:not(:disabled) {
+            background-color: #9f2c1d;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;margin-left: 240px;
+            font-size: 14px;
+            color: #666;
+        }
+/* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+    </style>
+</head>
+<body>
+
+    <div class="content-wrapper">
+        <div class="content-area">
+            <div class="container">
+                <h1>Nutrition Advice for Your Clients</h1>
+                
+                {% if messages %}
+                    <ul class="messages">
+                        {% for message in messages %}
+                            <li class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% if client_fm_details %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Client Name</th>
+                            <th>Fitness Manager</th>
+                            <th>Select</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in client_fm_details %}
+                        <tr>
+                            <td>{{ detail.client_name }}</td>
+                            <td>{{ detail.fm_name }}</td>
+                            <td>
+                                <form method="get" action="{% url 'fm_nutrition_advice' detail.client_id %}">
+                                    <button type="submit" class="select-button">
+                                        Select
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No clients found for this fitness manager.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>
+{% endblock %}

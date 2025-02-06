@@ -1,0 +1,273 @@
+{% load static %}
+{% include 'header1.html' %}
+{% block content %}
+<style>
+    body {
+        background-color: #f9f9f9;
+        font-family: Arial, sans-serif;
+    }
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        margin-top: 90px;
+    }
+    .profile-card {
+    background: linear-gradient(145deg, #ffffff, #f0f0f0); /* Gradient background for depth */
+    border-radius: 15px; /* Slightly more rounded corners */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Deeper shadow for a floating effect */
+    padding: 30px; /* More padding for spaciousness */
+    text-align: center;
+    position: relative;
+    transition: transform 0.3s, box-shadow 0.3s; 
+    }
+    .profile-card img {
+        border-radius: 50%;
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        margin-bottom: 20px;
+    }
+    .profile-card h2 {
+        margin-bottom: 10px;
+        font-size: 24px;
+        color: #333;
+    }
+    .profile-card p {
+        font-size: 16px;
+        color: #666;
+        margin: 5px 0;
+    }
+    .profile-card .btn {
+        background-color: #b35138;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        text-decoration: none;
+        margin: 10px 0;
+        display: inline-block;
+    }
+    .profile-card .btn:hover {
+        background-color: #b35138;
+    }
+    .profile-info {
+    text-align: left; /* Align text to the left */
+    padding: 10px 0px;
+    padding-left: 270px;
+    padding-right: 120px; /* Optional: add some vertical padding */
+}
+
+.profile-info h2 {
+    margin-bottom: 15px; /* Space between the title and the first field */
+    font-size: 24px; /* Optional: adjust font size */
+    color: #333; /* Optional: adjust color */
+}
+
+.profile-info p {
+    margin: 5px 0; /* Space between paragraphs */
+    color: #666; /* Optional: adjust color for readability */
+}
+.profile-item {
+    display: flex; /* Use flexbox for layout */
+    justify-content: space-between; /* Space between label and data */
+    margin: 5px 0; /* Space between paragraphs */
+}
+
+.profile-item strong {
+    flex: 1; /* Allow label to take up available space */
+    color: #333; /* Optional: adjust color */
+}
+
+.profile-item span {
+    flex: 2; /* Allow data to take more space */
+    color: #666; /* Optional: adjust color for readability */
+}
+    .edit-form {
+        display: none;
+        margin-top: 20px;
+    }
+    .edit-form.active {
+        display: block;
+    }
+    .edit-form input {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    .edit-form button {
+        background-color: #b35138;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        display: inline-block;
+    }
+    .edit-form button:hover {
+        background-color: #b35138;
+    }
+    input.is-invalid, select.is-invalid {
+    border-color: red;
+    background-color: #f8d7da;
+}
+/* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+</style>
+<section class="section" id="profile">
+    <div class="container">
+        <div class="profile-card">
+            <!-- Example profile image -->
+            {% if client.profile_picture %}
+            <img src="{{ client.profile_picture.url }}" alt="Profile Picture">
+        {% endif %}
+            <!-- Profile Information -->
+            {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <h2>{{ client.name }}</h2>
+        <div class="profile-info">
+            <p class="profile-item"><strong>User Name</strong> <span>: {{ client.username }}</span></p>
+            <p class="profile-item"><strong>Email</strong> <span>: {{ client.email }}</span></p>
+            <p class="profile-item"><strong>Phone</strong> <span>: {{ client.phone }}</span></p>
+            <p class="profile-item"><strong>Date of Birth</strong> <span>: {{ client.dob }}</span></p>
+            <p class="profile-item"><strong>Age</strong> <span>: {{ client.age }}</span></p>
+            <p class="profile-item"><strong>Date Joined</strong> <span>: {{ client.date_joined }}</span></p>
+        </div>
+        
+            <a href="#" class="btn" id="edit-btn">Update Your Profile</a>
+
+            <div class="bmi-box"></div>
+                {% if bmi %}
+                    <p><strong>BMI:</strong> {{ bmi|floatformat:2 }}</p>
+                    {% if bmi < 18.5 %}
+                        <p>You are underweight.</p>
+                    {% elif bmi >= 18.5 and bmi < 24.9 %}
+                        <p>Your BMI is normal.</p>
+                    {% elif bmi >= 25 and bmi < 29.9 %}
+                        <p>You are overweight.</p>
+                    {% else %}
+                        <p>You are obese.</p>
+                    {% endif %}
+                {% else %}
+                    <p>Update your profile  to proceed.</p>
+                {% endif %}
+            </div>
+            
+            
+
+            <div class="edit-form" id="edit-form">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <center><button type="submit">Update Profile</button></center>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    document.getElementById('edit-btn').addEventListener('click', function(event) {
+        event.preventDefault();
+        var editForm = document.getElementById('edit-form');
+        if (editForm.classList.contains('active')) {
+            editForm.classList.remove('active');
+            this.textContent = 'Edit Profile';
+        } else {
+            editForm.classList.add('active');
+            this.textContent = 'Cancel';
+        }
+    });
+document.addEventListener('DOMContentLoaded', function () {
+    const usernameInput = document.querySelector('input[name="username"]');
+    const heightInput = document.querySelector('input[name="height"]');
+    const weightInput = document.querySelector('input[name="weight"]');
+    
+    // Username validation (real-time)
+    usernameInput.addEventListener('input', function() {
+        const usernameRegex = /^[A-Za-z]\w{5,29}$/;
+        if (!usernameRegex.test(usernameInput.value)) {
+            usernameInput.setCustomValidity('Username must start with a letter and be 6-30 characters.');
+        } else {
+            usernameInput.setCustomValidity('');
+        }
+    });
+
+    // Height validation (real-time)
+    heightInput.addEventListener('input', function() {
+        const height = parseInt(heightInput.value);
+        if (height < 60 || height > 230 || isNaN(height)) {
+            heightInput.setCustomValidity('Height must be between 60 cm and 230 cm.');
+        } else {
+            heightInput.setCustomValidity('');
+        }
+    });
+
+    // Weight validation (real-time)
+    weightInput.addEventListener('input', function() {
+        const weight = parseInt(weightInput.value);
+        if (weight < 20 || weight > 300 || isNaN(weight)) {
+            weightInput.setCustomValidity('Weight must be between 20 kg and 300 kg.');
+        } else {
+            weightInput.setCustomValidity('');
+        }
+    });
+});
+
+</script>
+{% endblock %}

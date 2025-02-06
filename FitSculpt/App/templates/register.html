@@ -1,0 +1,231 @@
+{% load static %}
+{% block content %}
+{% include 'header.html' %}
+
+<!-- ***** Header Area End ***** -->
+<!-- ***** Main Banner Area Start ***** -->
+<!-- ***** Main Banner Area End ***** -->
+<!-- ***** Features Item Start ***** -->
+<!-- ***** Testimonials Ends ***** -->
+<!-- ***** Contact Us Area Starts ***** -->
+<section class="section" id="contact-us">
+    <div class="container-fluid">
+        <div class="row">
+            <center>
+                <body>
+                {% if messages %}
+                    <ul class="messages">
+                        {% for message in messages %}
+                            <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                                {{ message }}
+                            </li>
+                        {% endfor %}
+                    </ul> 
+                {% endif %}
+                </body>
+                <div class="col-lg-6 col-md-6 col-xs-12">
+                    <div class="contact-form">
+                        <form id="registration-form" action="{% url 'register' %}" method="post">
+                            {% csrf_token %}
+                            <h2 style="color:red;">{{status}}</h2>
+                            <br><br>
+                            <div class="row">
+                                <div class="col-md-6 col-sm-12">
+                                    <fieldset>
+                                        <input name="name" type="text" id="name" placeholder="Your Name*" required>
+                                        <span class="error-message" id="name-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-6 col-sm-12">
+                                    <fieldset>
+                                        <input name="email" type="email" id="email" placeholder="Your Email*" required>
+                                        <span class="error-message" id="email-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset>
+                                        <input name="phone" type="text" id="phone" pattern="\d{10}" title="Enter a 10-digit phone number" placeholder="Your Phone Number*" minlength="10" maxlength="10" required>
+                                        <span class="error-message" id="phone-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset>
+                                        <label style="color:rgb(173, 149, 149);" for="dob">DOB</label>
+                                        <input name="dob" type="date" id="dob" placeholder="Date Of Birth*" required>
+                                        <span class="error-message" id="dob-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset>
+                                        <input name="username" type="text" id="username" placeholder="Username*" required>
+                                        <span class="error-message" id="username-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset>
+                                        <input name="password" type="password" id="password" placeholder="Password*" required>
+                                        <span class="error-message" id="password-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset>
+                                        <input name="confirm_password" type="password" id="confirm_password" placeholder="Confirm Password*" required>
+                                        <span class="error-message" id="confirm-password-error"></span>
+                                    </fieldset>
+                                </div>
+                                <br><br><br><br><br>
+                                <div class="col-lg-12">
+                                    <fieldset>
+                                        <button type="submit" id="form-submit" name="submit" value="REGISTER" class="main-button">REGISTER</button>
+                                    </fieldset>
+                                </div>
+                            </div><br>
+                            <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+                        </form>
+                    </div>
+                </div>
+            </center>
+        </div>
+    </div>
+</section>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>  
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const form = document.getElementById('registration-form');
+      const dobField = document.getElementById('dob');
+      const passwordField = document.getElementById('password');
+      const confirmPasswordField = document.getElementById('confirm_password');
+
+      const nameField = document.getElementById('name');
+      const emailField = document.getElementById('email');
+      const phoneField = document.getElementById('phone');
+      const usernameField = document.getElementById('username');
+
+      const nameError = document.getElementById('name-error');
+      const emailError = document.getElementById('email-error');
+      const phoneError = document.getElementById('phone-error');
+      const dobError = document.getElementById('dob-error');
+      const usernameError = document.getElementById('username-error');
+      const passwordError = document.getElementById('password-error');
+      const confirmPasswordError = document.getElementById('confirm-password-error');
+
+      // Function to display error messages
+      function showError(element, message) {
+          element.textContent = message;
+          element.style.color = 'red';
+      }
+
+      // Function to clear error messages
+      function clearErrors() {
+          nameError.textContent = '';
+          emailError.textContent = '';
+          phoneError.textContent = '';
+          dobError.textContent = '';
+          usernameError.textContent = '';
+          passwordError.textContent = '';
+          confirmPasswordError.textContent = '';
+      }
+
+      let phoneValid = false;  // Flag to track phone validity
+let nameValid = false;   // Flag to track name validity
+
+// Phone number validation on input
+phoneField.addEventListener('input', function () {
+    const phonePattern = /^[6-9]\d{9}$/;
+    if (!phonePattern.test(phoneField.value)) {
+        showError(phoneError, 'Enter a valid 10-digit phone number starting with 6, 7, 8, or 9.');
+        phoneValid = false;  // Mark phone number as invalid
+    } else {
+        phoneError.textContent = '';
+        phoneValid = true;  // Mark phone number as valid
+    }
+});
+
+// Name validation on input
+nameField.addEventListener('input', function () {
+    const namePattern = /^[A-Za-z\s\-]+$/;
+    if (!namePattern.test(nameField.value)) {
+        showError(nameError, 'Name can only contain letters, spaces, and hyphens.');
+        nameValid = false;  // Mark name as invalid
+    } else if (nameField.value.trim() === '') {
+        showError(nameError, 'Name is required.');
+        nameValid = false;  // Mark name as invalid
+    } else {
+        nameError.textContent = '';
+        nameValid = true;  // Mark name as valid
+    }
+});
+
+// Prevent form submission if phone number or name is invalid
+form.addEventListener('submit', function (event) {
+    if (!phoneValid || !nameValid) {
+        event.preventDefault();  // Prevent form submission
+        if (!phoneValid) {
+            showError(phoneError, 'Please correct the phone number before submitting.');
+        }
+        if (!nameValid) {
+            showError(nameError, 'Please correct the name before submitting.');
+        }
+    }
+});
+
+
+dobField.addEventListener('change', function () {
+    const dob = new Date(dobField.value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);  // Ignore time for accurate date comparison
+
+    // Calculate the date 10 years ago from today
+    const tenYearsAgo = new Date();
+    tenYearsAgo.setFullYear(today.getFullYear() - 10);
+
+    if (dob > today) {
+        showError(dobError, 'Date of birth cannot be in the future.');
+    } else if (dob > tenYearsAgo) {
+        showError(dobError, 'You must be at least 10 years old.');
+    } else {
+        dobError.textContent = '';  // Clear the error if the date is valid
+    }
+});
+
+
+      form.addEventListener('input', function () {
+          if (passwordField.value !== confirmPasswordField.value) {
+              showError(confirmPasswordError, 'Passwords do not match.');
+          } else {
+              confirmPasswordError.textContent = '';
+          }
+      });
+
+      emailField.addEventListener('input', function () {
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailPattern.test(emailField.value)) {
+              showError(emailError, 'Invalid email address.');
+          } else {
+              emailError.textContent = '';
+          }
+      });
+
+      
+
+      usernameField.addEventListener('input', function () {
+          if (['fm001', 'admin001'].includes(usernameField.value)) {
+              showError(usernameError, 'This username cannot be taken.');
+          } else {
+              usernameError.textContent = '';
+          }
+      });
+
+      passwordField.addEventListener('input', function () {
+          if (passwordField.value.length < 8) {
+              showError(passwordError, 'Password must be at least 8 characters long.');
+          } else {
+              passwordError.textContent = '';
+          }
+      });
+  });
+</script>
+{% endblock %}

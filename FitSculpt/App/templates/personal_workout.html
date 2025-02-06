@@ -1,0 +1,247 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Workout</title>
+    <style>
+        /* General body styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .content-wrapper {
+            padding: 40px 20px;
+            margin-top: 100px; /* Ensure content is below header */
+            text-align: center;
+            background-color: #ffffff;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .trainer-button, .schedule-button {
+            background-color: #b35138;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+            margin: 20px 10px;
+            display: inline-block;
+        }
+
+        .trainer-button:hover, .schedule-button:hover {
+            background-color: #9f2c1d;
+        }
+
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            padding: 20px;
+            background-color: #fffcfc;
+            color: white;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .trainer-button, .schedule-button {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .content-wrapper {
+                margin-top: 80px;
+                padding: 20px;
+            }
+        }
+        .goback {
+            position: absolute; /* Positioning it absolutely */
+            top: 90px; /* Adjust distance from the top */
+            left: 20px; /* Adjust distance from the left */
+            background-color: #9f2c1d; /* Background color */
+            color: white; /* Text color */
+            padding-top: 20px;
+            padding: 10px ; /* Padding for the button */
+            border-radius: 5px; /* Rounded corners */
+            text-decoration: none; /* Remove underline */
+            transition: background-color 0.3s; /* Smooth background color transition */
+        }
+        .goback:hover {
+            background-color: #0056b3; /* Darker shade on hover */
+        }
+        /* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+    /* Style for the star rating system */
+    .star-rating {
+        direction: rtl; /* Right to left to position highest star first */
+        font-size: 2rem; /* Increase star size */
+        display: inline-flex; /* Align stars in a row */
+    }
+
+    .star-rating input[type="radio"] {
+        display: none; /* Hide radio buttons */
+    }
+
+    .star-rating label {
+        color: #ccc; /* Default color for unselected stars */
+        cursor: pointer; /* Show pointer on hover */
+        transition: color 0.2s; /* Smooth transition for color change */
+    }
+
+    /* Change star color when selected */
+    .star-rating input[type="radio"]:checked ~ label {
+        color: #FFD700; /* Gold color for selected stars */
+    }
+
+    /* Change star color on hover */
+    .star-rating label:hover, .star-rating label:hover ~ label {
+        color: #FFD700; /* Gold color for hovered stars */
+    }
+
+
+    </style>
+</head>
+<body>
+
+<div class="content-wrapper">
+    <h1>Personal Workout</h1>
+    {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        <a href="{% url 'view_scheduled_class' %}" class="schedule-button">See Live Schedule</a>
+        <a href="{% url 'send_message' fm_id=trainer_selected.fm_id %}" class="schedule-button">Message Trainer</a>
+    
+    <!-- Show selected trainer or prompt to select -->
+    {% if trainer_selected %}
+        <p>You have selected The Trainer: <strong>{{ trainer_selected.fm_name }}</strong></p>
+
+
+    <!-- Star rating form -->
+    <form method="POST" action="{% url 'rate_trainer' %}">
+        {% csrf_token %}
+        <input type="hidden" name="fm_id" value="{{ trainer_selected.fm_id }}">
+        <label for="rating">Rate this Trainer:</label>
+        
+        <div class="star-rating">
+            <input type="radio" id="star5" name="rating" value="5" required>
+            <label for="star5" title="5 stars">★</label>
+        
+            <input type="radio" id="star4" name="rating" value="4" required>
+            <label for="star4" title="4 stars">★</label>
+        
+            <input type="radio" id="star3" name="rating" value="3" required>
+            <label for="star3" title="3 stars">★</label>
+        
+            <input type="radio" id="star2" name="rating" value="2" required>
+            <label for="star2" title="2 stars">★</label>
+        
+            <input type="radio" id="star1" name="rating" value="1" required>
+            <label for="star1" title="1 star">★</label>
+        </div>
+        
+        
+
+        <button type="submit">Submit Rating</button>
+        {% if fm_skills %}
+    <p>Average Rating: {{ fm_skills.rating }}/5</p>
+{% else %}
+    <p>No rating available for this trainer.</p>
+{% endif %}
+
+
+    </form>
+
+        <p>If You Want You Can Change The Trainer</p>
+        <a href="{% url 'select_trainer' %}" class="trainer-button">Change Trainer</a>
+    {% else %}
+        <p>Select your personal trainer to start your workout plan</p>
+        <a href="{% url 'select_trainer' %}" class="trainer-button">Select a Trainer</a>
+    {% endif %}
+
+</div>
+<a href="{% url 'workouts' %}" class="goback">Go Back</a>
+
+
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
+
+{% endblock %}

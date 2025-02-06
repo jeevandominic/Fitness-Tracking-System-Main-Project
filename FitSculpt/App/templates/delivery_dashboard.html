@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Dashboard - FitSculpt Shop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, #232d39 0%, #151a20 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 0%, rgba(237, 86, 59, 0.1) 100%);
+            z-index: 1;
+        }
+
+        .dashboard-header > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        .brand-name {
+            color: #ed563b;
+            font-weight: 700;
+            font-size: 2.8rem;
+            margin-bottom: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            letter-spacing: 1px;
+        }
+
+        .brand-name em {
+            font-style: normal;
+            color: white;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+            margin-top: 10px;
+            color: #fff;
+        }
+
+        .orders-section {
+            background-color: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .section-title {
+            color: #232d39;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ed563b;
+        }
+
+        .status-badge {
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .status-paid {
+            background-color: #ffd700;
+            color: black;
+        }
+
+        .status-shipped {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .status-delivered {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-action {
+            border-radius: 25px;
+            padding: 10px 25px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .btn-action:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .table {
+            border-radius: 15px;
+            overflow: hidden;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table thead th {
+            background: #232d39;
+            color: white;
+            padding: 20px 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        .table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(237, 86, 59, 0.05);
+            transform: scale(1.01);
+        }
+
+        .logout-btn {
+            background-color: #ed563b;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background-color: #dc4c31;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, transparent 0%, rgba(237, 86, 59, 0.05) 100%);
+            z-index: 1;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .stats-icon {
+            font-size: 2.5rem;
+            color: #ed563b;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .stats-card:hover .stats-icon {
+            transform: scale(1.2);
+        }
+
+        .stats-number {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #232d39;
+            margin-bottom: 5px;
+        }
+
+        .stats-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .stats-card, .orders-section {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        .stats-card:nth-child(1) { animation-delay: 0.2s; }
+        .stats-card:nth-child(2) { animation-delay: 0.4s; }
+        .stats-card:nth-child(3) { animation-delay: 0.6s; }
+
+        .no-orders {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .no-orders i {
+            font-size: 4rem;
+            color: #ed563b;
+            margin-bottom: 20px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ed563b;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #dc4c31;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="brand-name">FIT<em>SCULPT</em></h1>
+                    <h2 class="dashboard-title">Delivery Manager Dashboard</h2>
+                </div>
+                <a href="{% url 'delivery_manager_logout' %}" class="btn logout-btn">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <i class="fas fa-box stats-icon"></i>
+                    <div class="stats-number">{{ orders|length }}</div>
+                    <div class="stats-label">Total Orders</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <i class="fas fa-shipping-fast stats-icon"></i>
+                    <div class="stats-number">{{ orders|filter_status:'Shipped'|length }}</div>
+                    <div class="stats-label">Orders Shipped</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <i class="fas fa-check-circle stats-icon"></i>
+                    <div class="stats-number">{{ orders|filter_status:'Delivered'|length }}</div>
+                    <div class="stats-label">Orders Delivered</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="orders-section">
+            <h3 class="section-title">Order Management</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Customer Details</th>
+                        <th>Order Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.product.name }}</td>
+                        <td>{{ order.quantity }}</td>
+                        <td>
+                            {{ order.address.address_line1 }}, 
+                            {{ order.address.city }}, 
+                            {{ order.address.state }}<br>
+                            <small class="text-muted">Contact: {{ order.address.contact_number }}</small>
+                        </td>
+                        <td>{{ order.order_date }}</td>
+                        <td>
+                            <span class="status-badge status-{{ order.status|lower }}">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if order.status == 'Paid' and order.can_ship %}
+                                <form method="post" action="{% url 'update_order_status' order.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="Shipped">
+                                    <button type="submit" class="btn btn-primary btn-action">
+                                        <i class="fas fa-truck me-1"></i> Ship
+                                    </button>
+                                </form>
+                            {% elif order.status == 'Shipped' and order.can_deliver %}
+                                <form method="post" action="{% url 'update_order_status' order.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="Delivered">
+                                    <button type="submit" class="btn btn-success btn-action">
+                                        <i class="fas fa-check me-1"></i> Deliver
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="no-orders">
+                            <i class="fas fa-box-open"></i>
+                            <h3>No Orders Found</h3>
+                            <p>There are currently no orders to display.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

@@ -1,0 +1,222 @@
+{% load static %}
+{% block content %}
+{% include 'fm_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Workout</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-bottom: 20px;
+        }
+
+        /* Layout */
+        .container {
+            display: flex;
+            margin-top: 80px; /* Push content under the header */
+        }
+
+        .main-content {
+            flex-grow: 1;
+            margin-left: 160px; /* Adjust according to sidebar width */
+            padding: 20px;
+        }
+
+        form {
+            max-width: 600px; /* Center the form */
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical; /* Allow vertical resizing only */
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100%; /* Full width */
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        a {
+            display: inline-block;
+            text-align: center;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: #0056b3;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        small {
+            color: #6c757d;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 12px;
+        }
+
+        /* Media queries for responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+    <script>
+        function validateField(fieldId, messageId, regex, message) {
+            const field = document.getElementById(fieldId);
+            const messageElement = document.getElementById(messageId);
+            if (!regex.test(field.value.trim())) {
+                messageElement.textContent = message;
+                return false;
+            } else {
+                messageElement.textContent = '';
+                return true;
+            }
+        }
+
+        function validateForm() {
+            const workoutNameValid = validateField(
+                'workout_name', 
+                'workoutNameMessage', 
+                /^[A-Za-z\s]+$/, 
+                'Workout Name must only contain letters and spaces.'
+            );
+            const descriptionValid = validateField(
+                'description', 
+                'descriptionMessage', 
+                /^[\w\s!@#$%^&*(),.?":{}|<>]*$/, 
+                'Description can contain letters, numbers, special characters, and spaces.'
+            );
+            const bodyPartValid = document.getElementById('body_part').value !== '';
+            document.getElementById('bodyPartMessage').textContent = bodyPartValid ? '' : 'Please select a body part.';
+            return workoutNameValid && descriptionValid && bodyPartValid;
+        }
+
+        // Attach real-time validation listeners
+        window.onload = function() {
+            document.getElementById('workout_name').addEventListener('input', function() {
+                validateField(
+                    'workout_name', 
+                    'workoutNameMessage', 
+                    /^[A-Za-z\s]+$/, 
+                    'Workout Name must only contain letters and spaces.'
+                );
+            });
+            document.getElementById('description').addEventListener('input', function() {
+                validateField(
+                    'description', 
+                    'descriptionMessage', 
+                    /^[\w\s!@#$%^&*(),.?":{}|<>]*$/, 
+                    'Description can contain letters, numbers, special characters, and spaces.'
+                );
+            });
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <h1>Update Workout: {{ workout.workout_name }}</h1>
+            <form action="" method="POST" enctype="multipart/form-data" onsubmit="return validateForm();">
+                {% csrf_token %}
+                <label for="workout_name">Workout Name:</label>
+                <input type="text" id="workout_name" name="workout_name" value="{{ workout.workout_name }}" required>
+                <div id="workoutNameMessage" class="error-message"></div>
+
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" required>{{ workout.description }}</textarea>
+                <div id="descriptionMessage" class="error-message"></div>
+
+                <label for="body_part">Body Part:</label>
+                <input type="text" id="body_part" name="body_part" value="{{ workout.body_part }}"  disabled>
+
+                <div id="bodyPartMessage" class="error-message"></div>
+
+                <label for="duration">Duration (in minutes):</label>
+                <input type="number" id="duration" name="duration" value="{{ workout.duration }}" min="1" max="20" required>
+
+                <label for="workout_image">Workout Image:</label>
+                <input type="file" id="workout_image" name="workout_image" accept="image/*">
+                <small>Leave blank to keep current image.</small><br><br>
+
+                <label for="reference_video">Reference Video</label>
+                <input type="url" id="reference_video" value="{{ workout.reference_video }}" name="reference_video" required><br><br>
+
+                <label for="plans">Select Plans:</label>
+                <select id="plans" name="plans" multiple>
+                    {% for plan in all_plans %}
+                        <option value="{{ plan.plan_id }}" 
+                            {% if plan in associated_plans %} selected {% endif %}>
+                            {{ plan.plan_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <small>Already selected plans highlighted here.</small>
+
+                <button type="submit">Update Workout</button>
+            </form>
+            <center><a href="{% url 'fm_workouts' %}">Back</a></center>
+        </div>
+    </div>
+</body>
+</html>
+{% endblock %}

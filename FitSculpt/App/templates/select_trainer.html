@@ -1,0 +1,237 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Trainer</title>
+    <style>
+        /* Add your CSS styling here */
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 80px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .trainer-info {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: none; /* Hide initially */
+        }
+        .timing-dropdown {
+            display: none; /* Hide initially */
+        }
+        .submit-button {
+            background-color: #b35138;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none; /* Hide initially */
+        }
+        .submit-button:hover {
+            background-color: #9f2c1d;
+        }
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            padding: 20px;
+            background-color: #fffcfc;
+            color: white;
+        }
+        .btn {
+    background-color: #b35138;
+    color: white;
+    padding: 10px 15px; /* Adjusted padding for smaller width */
+    width: auto; /* Set width to auto, or specify a value like 150px */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+    border-radius: 5px; /* Rounded corners */
+    padding: 20px; /* Padding inside the alert */
+    margin: 20px 0; /* Spacing around the alert */
+    font-size: 16px; /* Font size for readability */
+    text-align: center; /* Center align text */
+}
+
+.alert-warning a {
+    color: #856404; /* Match link color to text */
+    font-weight: bold; /* Make link stand out */
+    text-decoration: underline; /* Underline for emphasis */
+}
+
+.alert-warning a:hover {
+    color: #533f02; /* Darker yellow on hover */
+    text-decoration: none; /* Remove underline on hover */
+}
+
+
+    </style>
+    <script>
+        function showTrainerDetails() {
+            var select = document.getElementById('trainerSelect');
+            var trainerInfo = document.getElementById('trainerInfo');
+            var timingDropdown = document.getElementById('timingDropdown');
+            var submitButton = document.getElementById('submitButton');
+            var viewDetailsButton = document.getElementById('viewDetailsButton'); // Added for view button
+            
+            // Clear previous details
+            trainerInfo.innerHTML = '';
+            submitButton.style.display = 'none';
+            timingDropdown.style.display = 'none'; // Hide timing dropdown initially
+            viewDetailsButton.style.display = 'none'; // Hide view details button initially
+
+            // Get the selected trainer's data
+            var selectedIndex = select.selectedIndex;
+            if (selectedIndex > 0) {
+                var selectedTrainer = select.options[selectedIndex];
+
+                // Show trainer details
+                var trainerName = selectedTrainer.getAttribute('data-name');
+                var trainerDesignation = selectedTrainer.getAttribute('data-designation');
+                var trainerAvailableTimes = selectedTrainer.getAttribute('data-available-times').split(", ");
+
+                trainerInfo.innerHTML = `
+                    <strong>Name:</strong> ${trainerName} <br>
+                    <strong>Designation:</strong> ${trainerDesignation} <br>
+                    <strong>Available Times:</strong> ${trainerAvailableTimes.join(", ")}`;
+                trainerInfo.style.display = 'block';
+
+                // Populate timing dropdown
+                var timingSelect = document.getElementById('timing');
+                timingSelect.innerHTML = '<option value="">Select a Timing</option>'; // Reset options
+                for (var i = 0; i < trainerAvailableTimes.length; i++) {
+                    timingSelect.innerHTML += `<option value="${trainerAvailableTimes[i]}">${trainerAvailableTimes[i]}</option>`;
+                }
+
+                // Show timing dropdown
+                timingDropdown.style.display = 'block';
+                submitButton.style.display = 'inline-block'; // Show the select button
+
+                // Show the view details button with the correct link
+                viewDetailsButton.style.display = 'inline-block';
+                var trainerId = selectedTrainer.value; // Get selected trainer's ID
+                viewDetailsButton.setAttribute('href', '/fm-skills/' + trainerId + '/'); // Set the correct URL
+            } else {
+                trainerInfo.style.display = 'none'; // Hide if no trainer is selected
+            }
+        }
+        
+    </script>
+</head>
+<body>
+
+<div class="container">
+    {% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+        <li class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </li>
+    {% endfor %}
+</ul>
+{% endif %}
+    <h1>Select Trainer</h1>
+{% if has_active_plan %}
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <label for="trainerSelect">Choose a Fitness Manager:</label>
+        <select id="trainerSelect" name="trainer_id" onchange="showTrainerDetails()" required>
+            <option value="">Select a Trainer</option>
+            {% for trainer in trainers_with_details %}
+                <option value="{{ trainer.trainer.user_id }}" 
+                        data-name="{{ trainer.trainer.name }}"
+                        data-designation="{{ trainer.designation }}"
+                        data-available-times="{{ trainer.available_times|join:', ' }}">
+
+                    {{ trainer.trainer.name }} - {{ trainer.designation }}
+
+                </option>
+            {% endfor %}
+        </select>
+        <a id="viewDetailsButton" class="btn" style="display: none;">View Trainer Details</a> 
+
+        <div class="trainer-info" id="trainerInfo">
+
+        </div>
+
+        <div class="timing-dropdown" id="timingDropdown">
+            <label for="timing">Select Timing: Training is For One Hour from Monday To Saturday</label>
+            <select id="timing" name="timing" required>
+                <option value="">Select a Timing</option>
+            </select>
+        </div>
+
+        <button type="submit" id="submitButton" class="submit-button">Select Trainer</button>
+    </form>
+
+</div>
+{% else %}
+<div class="alert alert-warning">
+    You do not have an active plan. Please select a  <a href="{% url 'select_plan' %}">Standard Plan or Premium Plan</a> to proceed.
+</div>
+{% endif %}
+
+</body>
+</html>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>
+{% endblock %}

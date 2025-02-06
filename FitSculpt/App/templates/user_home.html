@@ -1,0 +1,433 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+<style>
+    /* Background and Overlay */
+    .background-image {
+        background-image: url("{% static 'assets/images/bestronger.jpg' %}");
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+        height: 100vh;
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+    }
+    .background-image::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.4));
+        z-index: -1;
+    }
+
+    /* Content Overlay */
+    .content-overlay {
+        position: relative;
+        z-index: 1;
+        padding-top: 0;  /* Remove top padding */
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* Button Container - Fullscreen Carousel */
+    .button-container {
+        display: flex;
+        height: 100vh;
+        width: 100%;
+        overflow: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+    }
+
+    /* Button Item - Fullscreen Cards */
+    .button-item {
+        position: relative;
+        min-width: 100vw;
+        width: 100vw;
+        height: 100vh;
+        flex: 0 0 100vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        scroll-snap-align: start;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(5px);
+        transition: transform 0.5s ease;
+        overflow: hidden;
+    }
+
+    /* Button Text */
+    .button-text {
+        font-size: 2.5rem;
+        font-weight: 600;
+        color: white;
+        margin: 0 0 20px 0;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        z-index: 2;
+        transition: transform 0.3s ease, color 0.3s ease;
+    }
+
+    /* Button Image */
+    .button-image {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+        transition: transform 0.5s ease;
+    }
+
+    .button-item:hover .button-image {
+        transform: scale(1.05);
+    }
+
+    .button-item::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%);
+        z-index: 1;
+    }
+
+    /* Messages Styling */
+    .messages {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .alert {
+        padding: 15px 25px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Footer */
+    footer {
+        text-align: center;
+        padding: 25px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        position: relative;
+        width: 100%;
+        z-index: 2;
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    footer p {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+    }
+
+    /* Scroll Indicators */
+    .scroll-indicators {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .scroll-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .scroll-dot.active {
+        background: rgba(255, 255, 255, 0.9);
+        transform: scale(1.2);
+    }
+
+    /* Navigation Arrows */
+    .nav-arrow {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(5px);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 100;
+    }
+
+    .nav-arrow:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .nav-arrow.prev {
+        left: 20px;
+    }
+
+    .nav-arrow.next {
+        right: 20px;
+    }
+
+    .nav-arrow::before {
+        content: '';
+        width: 15px;
+        height: 15px;
+        border-top: 3px solid white;
+        border-right: 3px solid white;
+        display: block;
+    }
+
+    .nav-arrow.prev::before {
+        transform: rotate(-135deg);
+    }
+
+    .nav-arrow.next::before {
+        transform: rotate(45deg);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .button-item {
+            min-width: 250px;
+            width: 250px;
+            flex: 0 0 250px;
+            margin: 0 calc(50vw - 125px);
+        }
+
+        .button-wrapper {
+            padding: 0 calc(50% - 125px);
+        }
+
+        .nav-arrow {
+            width: 40px;
+            height: 40px;
+        }
+    }
+
+    body, html {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    h1 {
+        color: white;
+        padding-top: 10px;
+        text-align: center;
+    }
+
+    main {
+        flex: 1;
+    }
+</style>
+
+<main>
+    <section class="section" id="contact-us">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        <div class="container-fluid content-overlay">
+            <div class="background-image"></div>
+
+            <div class="nav-arrow prev" onclick="scrollCards('left')"></div>
+            <div class="nav-arrow next" onclick="scrollCards('right')"></div>
+
+            <div class="button-wrapper">
+                <div class="button-container" id="buttonContainer">
+                    <a href="{% url 'workouts' %}" class="button-item">
+                        <h2 class="button-text">Track Your Workouts</h2>
+                        <img src="{% static 'assets/images/track_workout.jpg' %}" alt="Track Your Workouts" class="button-image">
+                    </a>
+                    <a href="{% url 'nutrition' %}" class="button-item">
+                        <h2 class="button-text">Track Your Nutrition</h2>
+                        <img src="{% static 'assets/images/track_nutrition.jpg' %}" alt="Track Your Nutrition" class="button-image">
+                    </a>
+                    <a href="{% url 'mental_fitness' %}" class="button-item">
+                        <h2 class="button-text">Your Mental Health</h2>
+                        <img src="{% static 'assets/images/mental_fitness.jpg' %}" alt="Your Mental Health" class="button-image">
+                    </a>
+                    <a href="{% url 'analyze_workout' %}" class="button-item">
+                        <h2 class="button-text">Injury Prevention</h2>
+                        <img src="{% static 'assets/images/injury_prevention.jpg' %}" alt="Injury Prevention" class="button-image">
+                    </a>
+                    <a href="{% url 'workout_correction' %}" class="button-item">
+                        <h2 class="button-text">Form Correction</h2>
+                        <img src="{% static 'assets/images/form_correction.jpg' %}" alt="Real-time Form Correction" class="button-image">
+                    </a>
+                    <a href="{% url 'shop' %}" class="button-item">
+                        <h2 class="button-text">FITSCULPT SHOP</h2>
+                        <img src="{% static 'assets/images/shop_image.jpg' %}" alt="Fitsculpt Shop" class="button-image">
+                    </a>
+                </div>
+            </div>
+
+            <div class="scroll-indicators" id="scrollIndicators">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('buttonContainer');
+        const buttons = container.getElementsByClassName('button-item');
+        const indicatorsContainer = document.getElementById('scrollIndicators');
+        let currentIndex = 0;
+        const totalSlides = buttons.length;
+        let autoSlideInterval; // For storing the interval
+        const AUTO_SLIDE_INTERVAL = 3000; // Time between slides in milliseconds (5 seconds)
+
+        // Clone first and last slides for infinite scroll effect
+        const firstClone = buttons[0].cloneNode(true);
+        const lastClone = buttons[buttons.length - 1].cloneNode(true);
+        container.appendChild(firstClone);
+        container.insertBefore(lastClone, buttons[0]);
+
+        // Create scroll indicators
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'scroll-dot';
+            dot.onclick = () => {
+                scrollToCard(i);
+                resetAutoSlide(); // Reset timer when manually clicked
+            };
+            indicatorsContainer.appendChild(dot);
+        }
+
+        // Start auto-sliding
+        startAutoSlide();
+
+        // Pause auto-sliding when user interacts with the carousel
+        container.addEventListener('mouseenter', pauseAutoSlide);
+        container.addEventListener('mouseleave', startAutoSlide);
+        container.addEventListener('touchstart', pauseAutoSlide);
+        container.addEventListener('touchend', startAutoSlide);
+
+        // Update active indicator on scroll
+        container.addEventListener('scroll', handleScroll);
+        
+        // Initial positioning
+        scrollToCard(0, false);
+        updateIndicators(0);
+
+        function startAutoSlide() {
+            autoSlideInterval = setInterval(() => {
+                currentIndex = (currentIndex + 1) % totalSlides;
+                scrollToCard(currentIndex);
+            }, AUTO_SLIDE_INTERVAL);
+        }
+
+        function pauseAutoSlide() {
+            clearInterval(autoSlideInterval);
+        }
+
+        function resetAutoSlide() {
+            pauseAutoSlide();
+            startAutoSlide();
+        }
+
+        function handleScroll() {
+            const scrollPosition = container.scrollLeft;
+            const cardWidth = container.offsetWidth;
+            
+            // Handle infinite scroll
+            if (scrollPosition === 0) {
+                container.scrollLeft = cardWidth * totalSlides;
+            } else if (scrollPosition >= cardWidth * (totalSlides + 1)) {
+                container.scrollLeft = cardWidth;
+            }
+
+            currentIndex = Math.round(container.scrollLeft / cardWidth) - 1;
+            if (currentIndex < 0) currentIndex = totalSlides - 1;
+            if (currentIndex >= totalSlides) currentIndex = 0;
+            
+            updateIndicators(currentIndex);
+        }
+    });
+
+    function scrollCards(direction) {
+        const container = document.getElementById('buttonContainer');
+        const cardWidth = container.offsetWidth;
+        const currentScroll = container.scrollLeft;
+        
+        if (direction === 'left') {
+            container.scrollTo({
+                left: currentScroll - cardWidth,
+                behavior: 'smooth'
+            });
+        } else {
+            container.scrollTo({
+                left: currentScroll + cardWidth,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    function scrollToCard(index, smooth = true) {
+        const container = document.getElementById('buttonContainer');
+        const cardWidth = container.offsetWidth;
+        container.scrollTo({
+            left: cardWidth * (index + 1),
+            behavior: smooth ? 'smooth' : 'auto'
+        });
+    }
+
+    function updateIndicators(activeIndex) {
+        const indicators = document.getElementsByClassName('scroll-dot');
+        Array.from(indicators).forEach((dot, index) => {
+            dot.classList.toggle('active', index === activeIndex);
+        });
+    }
+</script>
+
+{% endblock %}

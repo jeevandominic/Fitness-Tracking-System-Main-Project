@@ -1,0 +1,175 @@
+{% load static %}
+{% block content %}
+{% include 'admin_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Manager Plans</title>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-top: 0px; /* Added margin to push it below the header */
+            margin-bottom: 30px; /* Adjusted for spacing */
+            margin-left: 200px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #495057;
+            margin-top: 20px;
+            font-size: 1.8em;
+            margin-left: 200px;
+
+        }
+
+        .button-container {
+            text-align: center;
+            margin-bottom: 30px;
+            margin-left: 200px;
+
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .plan-card-container { /* Changed class name here */
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px; /* Adjusted for spacing between cards */
+            margin-top: 20px;
+        }
+
+        .plan-card { /* Changed class name here */
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 250px;
+            text-align: center;
+            transition: transform 0.2s;
+            margin-left: 200px;
+        }
+
+        .plan-card:hover { /* Changed class name here */
+            transform: scale(1.05);
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: #0056b3;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666;
+            margin-left: 200px;
+
+            /* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+        }
+    </style>
+</head>
+<body>
+    <h1>Plans</h1>
+    <div class="button-container">
+        <a href="{% url 'see_all_plan' %}"><button>See All Plans</button></a>
+        <a href="{% url 'add_plan' %}"><button>Add Plan</button></a>
+    </div>
+    <h2>Available Plans</h2>
+    <div class="plan-card-container"> <!-- Updated class name here -->
+        {% for plan in plans %}
+        <div class="plan-card"> <!-- Updated class name here -->
+            <h3>{{ plan.plan_name }}</h3>
+            <p><strong>Amount:</strong> {{ plan.amount }} Rupees</p>
+            <p><strong>Description:</strong> {{ plan.description }}</p>
+            <div>
+                <a href="{% url 'update_plan' plan.plan_id %}">
+                    <button>Update Plan</button>
+                </a>
+                <form action="{% url 'admin_delete_plan' plan.plan_id %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" style="background-color: #dc3545;">Delete Plan</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>  
+{% endblock %}

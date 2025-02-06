@@ -1,0 +1,270 @@
+{% load static %}
+{% block content %}
+{% include 'header.html' %}
+
+<section class="section" id="contact-us">
+    <div class="container-fluid">
+        <div class="row">
+            <center>
+                <body>
+                {% if messages %}
+                    <ul class="messages">
+                        {% for message in messages %}
+                            <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                                {{ message }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                </body>
+                <div class="col-lg-6 col-md-6 col-xs-12">
+                    <div class="contact-form">
+                        <form id="fitness-manager-form" action="{% url 'fm_register' %}" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <h2 style="color:red;">{{status}}</h2>
+                            <br><br>
+                            <div class="row">
+                                <div class="col-md-6 col-sm-12">
+                                    <fieldset>
+                                        <input name="name" type="text" id="name" placeholder="Your Name*" required>
+                                        <span class="error-message" id="name-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-6 col-sm-12">
+                                    <fieldset>
+                                        <input name="email" type="email" id="email" placeholder="Your Email*" required>
+                                        <span class="error-message" id="email-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset>
+                                        <input name="phone" type="text" id="phone" pattern="\d{10}" title="Enter a 10-digit phone number" placeholder="Your Phone Number*" minlength="10" maxlength="10" required>
+                                        <span class="error-message" id="phone-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset class="dropdown-fieldset">
+                                        <select name="qualification" id="qualification" required>
+                                            <option value="">Select Qualification*</option>
+                                            <option value="Certified Fitness Trainer">Certified Fitness Trainer</option>
+                                            <option value="Certified Personal Trainer">Certified Personal Trainer</option>
+                                            <option value="Certified Nutritionist or Dietitian">Certified Nutritionist or Dietitian</option>
+                                            <option value="Certified Mental Health Professional">Certified Mental Health Professional</option>
+                                            <option value="Certified Bodybuilding Coach">Certified Bodybuilding Coach</option>
+                                        </select>
+                                        <span class="error-message" id="qualification-error"></span>
+                                    </fieldset>
+                                </div>
+                                <div class="col-md-12 col-sm-12">
+                                    <fieldset class="dropdown-fieldset">
+                                        <select name="designation" id="designation" required>
+                                            <option value="">Select Designation*</option>
+                                            <option value="General Fitness Manager">General Fitness Manager</option>
+                                            <option value="Personal Trainer">Personal Trainer</option>
+                                            <option value="Specialized Diet Recommender">Specialized Diet Recommender</option>
+                                            <option value="Mental Fitness Manager">Mental Fitness Manager</option>
+                                            <option value="Body Builder Specialist">Body Builder Specialist</option>
+                                        </select>
+                                        <span class="error-message" id="designation-error"></span>
+                                    </fieldset>
+                                    <fieldset>
+                                        <p>Upload Your Course completion Certificate</p>
+                                        <input name="certificate_proof" type="file" id="certificate_proof" placeholder="Upload Your Course completion Certificate" accept=".jpg,.jpeg,.png,.pdf" required>
+                                        <span class="error-message" id="certificate-proof-error"></span>
+                                    </fieldset><br><br><br>
+                                <div class="col-lg-12">
+                                    <fieldset>
+                                        <button type="submit" id="form-submit" name="submit" value="REGISTER" class="main-button">REGISTER FOR JOB</button>
+                                    </fieldset>
+                                </div>
+                            </div><br>
+                            <p>Already have an account? <a href="{% url 'fm_login' %}">Login here</a></p>
+                        </form>
+                    </div>
+                </div>
+            </center>
+        </div>
+    </div>
+
+
+</section>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+</footer>  
+
+<style>
+  .dropdown-fieldset {
+      position: relative;
+      margin-bottom: 1em;
+  }
+
+  select {
+      width: 100%;
+      padding: 0.5em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      font-size: 1em;
+      color: #333;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  select:focus {
+      border-color: #007bff;
+      outline: none;
+      box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+  }
+
+  .error-message {
+      color: #dc3545;
+      font-size: 0.875em;
+  }
+/* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+
+  
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const form = document.getElementById('fitness-manager-form');
+
+      const nameField = document.getElementById('name');
+      const emailField = document.getElementById('email');
+      const phoneField = document.getElementById('phone');
+      const qualificationField = document.getElementById('qualification');
+      const designationField = document.getElementById('designation');
+
+      const nameError = document.getElementById('name-error');
+      const emailError = document.getElementById('email-error');
+      const phoneError = document.getElementById('phone-error');
+      const qualificationError = document.getElementById('qualification-error');
+      const designationError = document.getElementById('designation-error');
+
+      function showError(element, message) {
+          element.textContent = message;
+          element.style.color = 'red';
+      }
+
+      function clearErrors() {
+          nameError.textContent = '';
+          emailError.textContent = '';
+          phoneError.textContent = '';
+          qualificationError.textContent = '';
+          designationError.textContent = '';
+      }
+
+     
+      emailField.addEventListener('input', function () {
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailPattern.test(emailField.value)) {
+              showError(emailError, 'Invalid email address.');
+          } else {
+              emailError.textContent = '';
+          }
+      });
+
+      let phoneValid = false;  // Flag to track phone validity
+let nameValid = false;   // Flag to track name validity
+
+// Phone number validation on input
+phoneField.addEventListener('input', function () {
+    const phonePattern = /^[6-9]\d{9}$/;
+    if (!phonePattern.test(phoneField.value)) {
+        showError(phoneError, 'Enter a valid 10-digit phone number starting with 6, 7, 8, or 9.');
+        phoneValid = false;  // Mark phone number as invalid
+    } else {
+        phoneError.textContent = '';
+        phoneValid = true;  // Mark phone number as valid
+    }
+});
+
+// Name validation on input
+nameField.addEventListener('input', function () {
+    const namePattern = /^[A-Za-z\s\-]+$/;
+    if (!namePattern.test(nameField.value)) {
+        showError(nameError, 'Name can only contain letters, spaces, and hyphens.');
+        nameValid = false;  // Mark name as invalid
+    } else if (nameField.value.trim() === '') {
+        showError(nameError, 'Name is required.');
+        nameValid = false;  // Mark name as invalid
+    } else {
+        nameError.textContent = '';
+        nameValid = true;  // Mark name as valid
+    }
+});
+
+// Prevent form submission if phone number or name is invalid
+form.addEventListener('submit', function (event) {
+    if (!phoneValid || !nameValid) {
+        event.preventDefault();  // Prevent form submission
+        if (!phoneValid) {
+            showError(phoneError, 'Please correct the phone number before submitting.');
+        }
+        if (!nameValid) {
+            showError(nameError, 'Please correct the name before submitting.');
+        }
+    }
+});
+
+
+      form.addEventListener('submit', function (event) {
+          clearErrors();
+          // Validate dropdowns
+          if (qualificationField.value === '') {
+              showError(qualificationError, 'Qualification is required.');
+              event.preventDefault();
+          }
+
+          if (designationField.value === '') {
+              showError(designationError, 'Designation is required.');
+              event.preventDefault();
+          }
+      });
+  });
+</script>
+{% endblock %}

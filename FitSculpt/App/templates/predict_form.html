@@ -1,0 +1,229 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predict Mental and Physical Fitness</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6; /* Soft neutral background for a clean look */
+            color: #333;
+            margin-top: 120px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 2.5rem;
+            color: black;
+            font-weight: bold;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Slightly enhanced shadow for depth */
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #555;
+            font-size: 1rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: #fafafa;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: #4CAF50;
+            background-color: #fff;
+            outline: none;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        input::placeholder {
+            color: #aaa;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #ff7700;
+            color: white;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #ff7700;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            background: white;
+            color: black;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        footer p {
+            margin: 0;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: -10px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        input:invalid {
+            border-color: #dc3545;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mind Body Synergy</h1>
+    <form method="POST" action="{% url 'predict_fitness' %}">
+        {% csrf_token %}
+        <label>Physical Fitness Level:</label>
+        <select name="physical_fitness_level" required>
+            <option value="" disabled selected>Select your fitness level</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+        </select>
+        <label>Diet Quality:</label>
+        <select name="diet_quality" required>
+            <option value="" disabled selected>Select your diet quality</option>
+            <option value="Poor">Poor</option>
+            <option value="Average">Average</option>
+            <option value="Good">Good</option>
+        </select>
+        <label>Exercise Hours Per Week:</label> 
+        <input type="number" 
+               step="0.1" 
+               name="exercise_hours_per_week" 
+               id="exercise_hours" 
+               min="0" 
+               max="15" 
+               required 
+               oninput="validateInput(this, 'exerciseError')">
+        <span id="exerciseError" class="error-message"></span>
+        <label>Sleep Hours Per Night:</label>
+        <input type="number" 
+               step="0.1" 
+               name="sleep_hours_per_night" 
+               id="sleep_hours" 
+               min="0" 
+               max="15" 
+               required 
+               oninput="validateInput(this, 'sleepError')">
+        <span id="sleepError" class="error-message"></span>
+        
+        <button type="submit">Access Your Mental Fitness Level</button>
+    </form>
+
+    <footer>
+        <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const form = document.querySelector('form');
+        const submitButton = document.querySelector('button[type="submit"]');
+
+        function validateInput(input, errorId) {
+            const value = parseFloat(input.value);
+            const errorElement = document.getElementById(errorId);
+            let isValid = true;
+
+            if (isNaN(value)) {
+                errorElement.textContent = 'Please enter a valid number';
+                isValid = false;
+            } else if (value < 0 || value > 15) {
+                errorElement.textContent = `Value must be between 0 and 15`;
+                isValid = false;
+            } else {
+                errorElement.textContent = '';
+            }
+
+            // Check if all form inputs are valid
+            const exerciseInput = document.getElementById('exercise_hours');
+            const sleepInput = document.getElementById('sleep_hours');
+            const fitnessLevel = document.querySelector('select[name="physical_fitness_level"]');
+            const dietQuality = document.querySelector('select[name="diet_quality"]');
+            
+            const exerciseValid = exerciseInput.value !== '' && parseFloat(exerciseInput.value) >= 0 && parseFloat(exerciseInput.value) <= 15;
+            const sleepValid = sleepInput.value !== '' && parseFloat(sleepInput.value) >= 0 && parseFloat(sleepInput.value) <= 15;
+            const fitnessValid = fitnessLevel.value !== '';
+            const dietValid = dietQuality.value !== '';
+            
+            const allInputsValid = exerciseValid && sleepValid && fitnessValid && dietValid;
+
+            submitButton.disabled = !allInputsValid;
+            return isValid;
+        }
+
+        // Add event listeners to all form inputs
+        document.querySelectorAll('select').forEach(select => {
+            select.addEventListener('change', () => validateInput(select, ''));
+        });
+
+        form.addEventListener('submit', function(e) {
+            const exerciseHours = parseFloat(document.getElementById('exercise_hours').value);
+            const sleepHours = parseFloat(document.getElementById('sleep_hours').value);
+
+            if (exerciseHours < 0 || exerciseHours > 15 || sleepHours < 0 || sleepHours > 15) {
+                e.preventDefault();
+                alert('Please ensure all values are between 0 and 15');
+            }
+        });
+
+        // Initial validation check
+        validateInput(document.getElementById('exercise_hours'), 'exerciseError');
+        validateInput(document.getElementById('sleep_hours'), 'sleepError');
+    </script>
+</body>
+</html>
+{% endblock %}

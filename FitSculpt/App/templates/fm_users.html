@@ -1,0 +1,92 @@
+{% load static %}
+{% block content %}
+{% include 'fm_header.html' %}
+
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    /* Make table responsive */
+    .table-responsive {
+        overflow-x: auto; /* Enable horizontal scrolling on smaller screens */
+    }
+
+    table {
+        width: 100%; /* Use full width */
+        max-width: 200px; /* Set a maximum width for the table */
+        margin: 20px auto; /* Center the table */
+        border-collapse: collapse;
+        background-color: #fff;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    th, td {
+        padding: 8px; /* Smaller padding */
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        white-space: nowrap; /* Prevent text from wrapping */
+    }
+
+    th {
+        background-color: #343a40;
+        color: white;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    form {
+        display: inline;
+    }
+
+    .container {
+        padding: 20px;
+        margin-left: 270px; /* Adjust this value to match the width of your sidebar */
+        margin-top: 0px;  /* Adjust this value to create space below the header */
+    }
+</style>
+
+<div class="container">
+    <center><h1>Your Clients In FITSCULPT</h1></center>
+    <div class="table-responsive"> <!-- Add responsive wrapper -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Gender</th>
+                    <th>Age(Years)</th>
+                    <th>Height(cm)</th>
+                    <th>Weight(kg)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for client in clients %} 
+                <tr>
+                    <td>{{ client.name }}</td>
+                    <td>{{ client.email }}</td>
+                    <td>{{ client.phone }}</td>
+                    <td>{{ client.gender }}</td>
+                    <td>{{ client.age }}</td>
+                    <td>{{ client.height }}</td>
+                    <td>{{ client.weight }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

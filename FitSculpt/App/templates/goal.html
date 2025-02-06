@@ -1,0 +1,320 @@
+{% load static %}
+{% block content %}
+{% include 'header1.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Management</title>
+    <style>
+        /* General Page Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-top: 100px;
+            color: #2c3e50;
+        }
+
+        /* Centering content */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Form Styling */
+        form {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus,
+        select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        p {
+            font-size: 16px;
+            color: #555;
+            text-align: left;
+        }
+
+        /* Button Styles */
+        button,
+        .progress {
+            display: inline-block;
+            background-color: #e27037;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+
+        button:hover,
+        .progress:hover {
+            background-color: #e27037;
+        }
+
+        button[style*="red"] {
+            background-color: #e27037;
+        }
+
+        button[style*="red"]:hover {
+            background-color: #e27037;
+        }
+
+        /* Visibility Toggling */
+        #new-goal-form,
+        #view-goal-form {
+            display: none;
+        }
+
+        /* Footer Styling */
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            padding: 20px;
+            background-color: #fafbfc;
+            color: rgb(4, 0, 0);
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Additional Styling */
+        .toggle-buttons {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .toggle-buttons button,
+        .toggle-buttons .progress {
+            margin: 0 10px;
+            flex: 1;
+        }
+
+        @media (max-width: 600px) {
+            form {
+                width: 90%;
+            }
+
+            .toggle-buttons button,
+            .toggle-buttons .progress {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+
+        .back {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #e27037;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px auto;
+            transition: background-color 0.3s;
+        }
+
+        .back:hover {
+            background-color: #e27037;
+        }
+        /* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Manage Your Fitness Goal</h1>
+        
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <div class="toggle-buttons">
+            <button onclick="document.getElementById('new-goal-form').style.display='block'">Set New Goal</button>
+            <button onclick="document.getElementById('view-goal-form').style.display='block'">View Goal</button>
+            <a href="{% url 'goal_progress' %}" class="progress">View Goals Progress</a>
+        </div>
+
+        <!-- New Goal Form -->
+        <div id="new-goal-form">
+            <center><a href="{% url 'goal' %}" class="back">Back to Goals</a></center>
+            <h2>Set a New Goal</h2>
+            <form method="POST" action="{% url 'set_goal' %}">
+                {% csrf_token %}
+                <label for="target_type">Target Type:</label>
+                <select name="target_type" id="target_type" required>
+                    <option value="">Select</option>
+                    <option value="weight gain">Weight Gain</option>
+                    <option value="weight loss">Weight Loss</option>
+                    <option value="muscle gain">Muscle Gain</option>
+                    <option value="bulking">Bulking</option>
+                    <option value="cutting">Cutting</option>
+                    <option value="body shaping">Body Shaping</option>
+                </select>
+
+                <label for="starting_value">Starting Value: Weight in k.g:</label>
+                <input type="number" name="starting_value" id="starting_value" value="{{ weight }}" readonly>
+
+                <label for="target_value">Target Value:Weight in k.g:</label>
+                <input type="number" name="target_value" id="target_value" required min="10"  max="250">
+
+                <label for="start_date">Start Date:</label>
+                <input type="date" name="start_date" id="start_date" required>
+
+                <label for="no_of_days">Number of Days:</label>
+                <input type="number" name="no_of_days" id="no_of_days" min="20" max="150" required>
+
+                <label for="description">A Brief Description About Your Goal:</label>
+                <input type="text" name="description" id="description" required>
+
+                <button type="submit">Submit Goal</button>
+            </form>
+        </div>
+
+        <!-- View and Update Goal Form -->
+        <div id="view-goal-form">
+            {% if goal %}
+            <center><a href="{% url 'goal' %}" class="back">Back to Goals</a></center>
+            <h2>View or Update Your Goal</h2>
+            <form method="POST" action="{% url 'update_goal' goal.id %}">
+                {% csrf_token %}
+                <label for="target_type">Target Type:Weight in k.g:</label>
+                <input type="text" name="target_type" id="target_type" value="{{ goal.target_type }}" readonly>
+
+                <label for="starting_value">Starting Value:Weight in k.g:</label>
+                <input type="number" name="starting_value" id="starting_value" value="{{ goal.starting_value }}" readonly>
+
+                <label for="current_value">Current Value:Weight in k.g:</label>
+                <input type="number" name="current_value" id="current_value" value="{{ goal.current_value }}" min="10"  max="250" required>
+
+                <label for="target_value">Target Value:Weight in k.g:</label>
+                <input type="number" name="target_value" id="target_value" value="{{ goal.target_value }}" min="10"  max="250" required>
+
+                <label for="start_date">Start Date:</label>
+                <p>{{ goal.start_date|date:"d-m-Y" }}</p>
+
+                <label for="end_date">End Date:</label>
+                <p>{{ goal.end_date|date:"d-m-Y" }}</p>
+
+                <label for="no_of_days">Number of Days:</label>
+                <input type="number" name="no_of_days" id="no_of_days" value="{{ goal.no_of_days }}" required>
+
+                <label for="remaining_days">Remaining Days:</label>
+                {% if remaining_days is not None %}
+                    <p>{{ remaining_days }} days remaining</p>
+                {% else %}
+                    <p>No goal set or goal has ended.</p>
+                {% endif %}
+
+                <label for="description">Brief Description About Your Goal:</label>
+                <input type="text" name="description" id="description" value="{{ goal.description }}" readonly>
+
+                <button type="submit">Update Goal</button>
+            </form>
+
+            <form method="POST" action="{% url 'delete_goal' goal.id %}">
+                {% csrf_token %}
+                <button type="submit" style="background-color: red; color: white;">Delete Goal</button>
+            </form>
+            {% else %}
+            <p>You have not set any goal yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+<footer>
+    <p>&copy; {{ 2024 }} My Fitness Site. All Rights Reserved.</p>
+</footer>
+</html>
+{% endblock %}

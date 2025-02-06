@@ -1,0 +1,159 @@
+{% load static %}
+{% block content %}
+{% include 'admin_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Plans</title>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-top: 80px; /* Margin to push it below the header */
+            margin-bottom: 20px;
+        }
+
+        form {
+            max-width: 600px; /* Center the form */
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px; /* Rounded corners */
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical; /* Allow vertical resizing only */
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100%; /* Full width */
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        a {
+            display: inline-block;
+            text-align: center;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: #0056b3;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .alert {
+            color: red;
+            margin: 15px 0;
+        }
+    </style>
+    <script>
+        // Function to validate input fields
+        function validateInput(input, errorElement) {
+            if (input.value.trim() === '') {
+                errorElement.textContent = 'This field cannot be empty.';
+            } else {
+                errorElement.textContent = ''; // Clear the error
+            }
+        }
+
+        // Attach real-time validation
+        window.onload = function() {
+            const planNameInput = document.getElementById('plan_name');
+            const descriptionInput = document.getElementById('description');
+            const nameError = document.getElementById('nameError');
+            const descriptionError = document.getElementById('descriptionError');
+
+            // Add event listeners for real-time validation
+            planNameInput.addEventListener('input', function() {
+                validateInput(planNameInput, nameError);
+            });
+
+            descriptionInput.addEventListener('input', function() {
+                validateInput(descriptionInput, descriptionError);
+            });
+
+            // Validate on form submission as well
+            const form = document.querySelector('form');
+            form.onsubmit = function() {
+                validateInput(planNameInput, nameError);
+                validateInput(descriptionInput, descriptionError);
+                return nameError.textContent === '' && descriptionError.textContent === '';
+            };
+        };
+    </script>
+</head>
+<body>
+    <h1>Update Plan: {{ plan.plan_name }}</h1>
+    <form action="" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="plan_name">Plan Name:</label>
+        <input type="text" id="plan_name" name="plan_name" value="{{ plan.plan_name }}" required>
+        <div id="nameError" class="alert"></div>
+
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" name="amount" value="{{ plan.amount }}" required>
+
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" value="{{ plan.description }}" required>
+        <div id="descriptionError" class="alert"></div>
+
+        <label for="service_no">Service Number:</label>
+        <input type="number" id="service_no" name="service_no" value="{{ plan.service_no }}" required>
+
+        <button type="submit">Update Plan</button>
+    </form>
+    <center><a href="{% url 'admin_plans' %}">Back to Plans</a></center>
+    <footer>
+        <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+    </footer>
+</body>
+</html>
+{% endblock %}

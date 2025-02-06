@@ -1,0 +1,269 @@
+{% load static %}
+{% block content %}
+{% include 'fm_header.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Food</title>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .content-container {
+            margin-left: 250px; /* Adjust margin to ensure it's next to the sidebar */
+            padding: 20px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        a {
+            display: inline-block;
+            text-align: center;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: #0056b3;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .error {
+            color: #dc3545; /* Red color for error messages */
+            font-size: 0.9em;
+        }
+/* General styles for the message list */
+.messages {
+    list-style-type: none; /* Remove default list styling */
+    padding: 0; /* Remove default padding */
+    margin: 20px 0; /* Margin for spacing */
+}
+
+/* Style for each alert message */
+.alert {
+    padding: 15px; /* Add padding inside the alert */
+    margin-bottom: 10px; /* Space between alerts */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+}
+
+/* Specific styles for different alert types */
+.alert-success {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb; /* Border color */
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da; /* Light red background */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border color */
+}
+
+.alert-warning {
+    background-color: #fff3cd; /* Light yellow background */
+    color: #856404; /* Dark yellow text */
+    border: 1px solid #ffeeba; /* Border color */
+}
+
+.alert-info {
+    background-color: #d1ecf1; /* Light blue background */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb; /* Border color */
+}
+
+/* Additional hover effect for better UX */
+.alert:hover {
+    opacity: 0.9; /* Slightly dim on hover */
+}
+
+      
+    </style>
+    <script>
+        function validateFoodName() {
+            const foodName = document.getElementById('food_name').value;
+            const foodNameError = document.getElementById('food_name_error');
+            const foodNameRegex = /^[A-Za-z\s]+$/;
+
+            if (!foodNameRegex.test(foodName) && foodName !== "") {
+                foodNameError.textContent = 'Food name must contain only letters and spaces.';
+                return false;
+            } else {
+                foodNameError.textContent = '';
+                return true;
+            }
+        }
+
+        function validateFoodType() {
+            const foodType = document.getElementById('food_type').value;
+            const foodTypeError = document.getElementById('food_type_error');
+
+            if (foodType !== 'Vegetarian' && foodType !== 'Non-Vegetarian') {
+                foodTypeError.textContent = 'Food type must be either Vegetarian or Non-Vegetarian.';
+                return false;
+            } else {
+                foodTypeError.textContent = '';
+                return true;
+            }
+        }
+
+        function validateNumberField(fieldId, errorId, fieldName) {
+            const field = document.getElementById(fieldId);
+            const error = document.getElementById(errorId);
+            const value = parseInt(field.value);
+
+            if (isNaN(value) || value < 1 || value > 99) {
+                error.textContent = fieldName + ' must be a number between 1 and 99.';
+                return false;
+            } else {
+                error.textContent = '';
+                return true;
+            }
+        }
+
+        function validateForm() {
+            const isFoodNameValid = validateFoodName();
+            const isFoodTypeValid = validateFoodType();
+            const isCaloriesValid = validateNumberField('calories', 'calories_error', 'Calories');
+            const isProteinsValid = validateNumberField('proteins', 'proteins_error', 'Proteins');
+            const isCarbsValid = validateNumberField('carbs', 'carbs_error', 'Carbs');
+            const isFatsValid = validateNumberField('fats', 'fats_error', 'Fats');
+
+            return isFoodNameValid && isFoodTypeValid && isCaloriesValid && isProteinsValid && isCarbsValid && isFatsValid;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('food_name').addEventListener('input', validateFoodName);
+            document.getElementById('food_type').addEventListener('change', validateFoodType);
+        });
+    </script>
+</head>
+<body>
+    <div class="main-content">
+        <div class="content-container">
+            <h1>Add Food</h1>
+            {% if error_message %}
+                    <div class="error">{{ error_message }}</div>
+                {% endif %}
+
+            <form action="" method="POST" enctype="multipart/form-data" onsubmit="return validateForm();">
+                {% csrf_token %}
+                <label for="food_name">Food Name:</label>
+                <input type="text" id="food_name" name="food_name" required>
+                <div id="food_name_error" class="error"></div>
+
+                <label for="food_type">Type:</label>
+                <select id="food_type" name="food_type" required>
+                    <option value="">Select Type</option>
+                    <option value="Vegetarian">Vegetarian</option>
+                    <option value="Non-Vegetarian">Non-Vegetarian</option>
+                </select>
+                <div id="food_type_error" class="error"></div>
+
+                <label for="calories">Calories (Per 100 grams):</label>
+                <input type="number" id="calories" name="calories" min="1" max="99" required>
+                <div id="calories_error" class="error"></div>
+
+                <label for="proteins">Proteins (Per 100 grams):</label>
+                <input type="number" id="proteins" name="proteins" min="1" max="99" required>
+                <div id="proteins_error" class="error"></div>
+
+                <label for="carbs">Carbs (Per 100 grams):</label>
+                <input type="number" id="carbs" name="carbs" min="1" max="99" required>
+                <div id="carbs_error" class="error"></div>
+
+                <label for="fats">Fats (Per 100 grams):</label>
+                <input type="number" id="fats" name="fats" min="1" max="99" required>
+                <div id="fats_error" class="error"></div>
+
+                <label for="nutritional_descriptions">Select Nutritional Descriptions:</label>
+                <select id="nutritional_descriptions" name="nutritional_descriptions" multiple required>
+                    {% for nutrition in nutrition_options %}
+                        <option value="{{ nutrition.nutrition_no }}">{{ nutrition.first_description }}</option>
+                    {% endfor %}
+                </select>
+                
+                <button type="submit">Add Food</button>
+            </form>
+            <center><a href="{% url 'fm_nutritions' %}">Back to Nutritions</a></center>
+        </div>
+    </div>
+    <footer>
+        <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+    </footer>
+</body>
+</html>
+{% endblock %}
