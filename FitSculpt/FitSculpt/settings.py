@@ -204,8 +204,7 @@ RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
 
 # Temporary direct setting (for testing only)
-if not os.getenv('OPENAI_API_KEY'):
-    os.environ['OPENAI_API_KEY'] = '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'
+
     
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 print(f"OpenAI API Key found: {bool(OPENAI_API_KEY)}")
