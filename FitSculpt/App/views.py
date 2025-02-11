@@ -3391,7 +3391,6 @@ def order_view(request):
     user_id = request.session.get('user_id')  # Assuming session contains user ID
     orders = Order.objects.filter(
         user_id=user_id, 
-        status__in=['paid','shipped','delivered','cancelled']
     ).select_related('address', 'product').order_by('-order_date')
     
     # Calculate if order is still cancellable (within 2 days of payment)
@@ -3504,47 +3503,61 @@ from .models import Address, Cart
 
 @custom_login_required
 def address_confirmation(request):
-    user_id = request.session.get('user_id')
-    
-    # Check if the user already has an address
-    address = Address.objects.filter(user_id=user_id).first()
-    
     if request.method == "POST":
-        if address:
-            # Update the existing address
-            address.address_line1 = request.POST.get("address_line1")
-            address.city = request.POST.get("city")
-            address.state = request.POST.get("state")
-            address.zip_code = request.POST.get("zip_code")
-            address.contact_number = request.POST.get("contact_number")
-            address.save()
-        else:
-            # Create a new address
-            address = Address.objects.create(
-                user_id=user_id,
-                address_line1=request.POST.get("address_line1"),
-                city=request.POST.get("city"),
-                state=request.POST.get("state"),
-                zip_code=request.POST.get("zip_code"),
-                contact_number=request.POST.get("contact_number"),
-            )
+        user_id = request.session.get('user_id')
         
-        request.session['address_id'] = address.id
+        # Get coordinates from the form
+        latitude = request.POST.get('latitude')
+        longitude = request.POST.get('longitude')
+        
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT * FROM app_address WHERE user_id = %s
+            """, [user_id])
+            address = dictfetchall(cursor)
+            
+            if address:
+                # Update existing address
+                cursor.execute("""
+                    UPDATE app_address 
+                    SET address_line1 = %s,
+                        city = %s,
+                        state = %s,
+                        zip_code = %s,
+                        contact_number = %s,
+                        delivery_latitude = %s,
+                        delivery_longitude = %s
+                    WHERE user_id = %s
+                """, [
+                    request.POST.get("address_line1"),
+                    request.POST.get("city"),
+                    request.POST.get("state"),
+                    request.POST.get("zip_code"),
+                    request.POST.get("contact_number"),
+                    latitude,
+                    longitude,
+                    user_id
+                ])
+            else:
+                # Create new address
+                cursor.execute("""
+                    INSERT INTO app_address 
+                    (user_id, address_line1, city, state, zip_code, contact_number, delivery_latitude, delivery_longitude)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, [
+                    user_id,
+                    request.POST.get("address_line1"),
+                    request.POST.get("city"),
+                    request.POST.get("state"),
+                    request.POST.get("zip_code"),
+                    request.POST.get("contact_number"),
+                    latitude,
+                    longitude
+                ])
+        
         return redirect('initiate_payment')
-
-    # Retrieve cart items and calculate total price
-    cart_items = Cart.objects.filter(user_id=user_id,status=0)
-    total_price = sum(item.total_price for item in cart_items)
     
-    # Pass the address (if exists) to the template
-    return render(
-        request, 
-        'address_confirmation.html', 
-        {'cart_items': cart_items, 'total_price': total_price, 'address': address}
-    )
-
-
-
+    # ... rest of the view code ...
 
 @csrf_exempt
 def verify_payment(request):
@@ -4167,3 +4180,92 @@ def reject_delivery_boy(request, user_id):
             messages.success(request, 'Delivery boy application rejected')
     
     return redirect('admin_delivery_boys')
+
+@delivery_manager_required
+def update_order_status(request, order_id):
+    if request.method == 'POST':
+        try:
+            # Get delivery location from POST data
+            delivery_lat = float(request.POST.get('latitude'))
+            delivery_lng = float(request.POST.get('longitude'))
+            delivery_pincode = request.POST.get('pincode')
+            
+            with connection.cursor() as cursor:
+                # Get order details including delivery address coordinates
+                cursor.execute("""
+                    SELECT o.status, a.zip_code, a.delivery_latitude, a.delivery_longitude 
+                    FROM app_order o
+                    JOIN app_address a ON o.address_id = a.id
+                    WHERE o.id = %s
+                """, [order_id])
+                order = dictfetchall(cursor)[0]
+                
+                # Check if delivery coordinates exist
+                if order['delivery_latitude'] is None or order['delivery_longitude'] is None:
+                    # If no coordinates, just verify pincode
+                    if delivery_pincode == order['zip_code']:
+                        cursor.execute("""
+                            UPDATE app_order 
+                            SET status = 'Delivered',
+                                delivered_at = NOW(),
+                                delivery_latitude = %s,
+                                delivery_longitude = %s
+                            WHERE id = %s
+                        """, [delivery_lat, delivery_lng, order_id])
+                        
+                        request.session['delivery_success'] = f'Order #{order_id} has been successfully delivered!'
+                        return JsonResponse({
+                            'success': True,
+                            'message': 'Order marked as delivered successfully'
+                        })
+                else:
+                    # Calculate distance between delivery location and address
+                    distance = calculate_distance(
+                        delivery_lat, delivery_lng,
+                        float(order['delivery_latitude']), float(order['delivery_longitude'])
+                    )
+                    
+                    # Verify both pincode and distance (500 meters threshold)
+                    if delivery_pincode == order['zip_code'] and distance <= 500:
+                        cursor.execute("""
+                            UPDATE app_order 
+                            SET status = 'Delivered',
+                                delivered_at = NOW(),
+                                delivery_latitude = %s,
+                                delivery_longitude = %s
+                            WHERE id = %s
+                        """, [delivery_lat, delivery_lng, order_id])
+                        
+                        request.session['delivery_success'] = f'Order #{order_id} has been successfully delivered!'
+                        return JsonResponse({
+                            'success': True,
+                            'message': 'Order marked as delivered successfully'
+                        })
+                
+                request.session['delivery_error'] = 'Unable to mark order as delivered. Please ensure you are at the correct delivery location.'
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Delivery location does not match the delivery address. Please ensure you are at the correct location.'
+                }, status=400)
+                
+        except Exception as e:
+            request.session['delivery_error'] = 'An error occurred while updating the order status.'
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    }, status=405)
+
+@delivery_manager_required
+def clear_delivery_message(request):
+    if request.method == 'POST':
+        if 'delivery_success' in request.session:
+            del request.session['delivery_success']
+        if 'delivery_error' in request.session:
+            del request.session['delivery_error']
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=405)

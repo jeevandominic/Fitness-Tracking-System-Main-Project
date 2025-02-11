@@ -255,9 +255,68 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* Status Badge Styles */
+        .badge {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 20px;
+        }
+
+        .bg-paid {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .bg-shipped {
+            background-color: #17a2b8;
+            color: #fff;
+        }
+
+        .bg-on.transit {
+            background-color: #6610f2;
+            color: #fff;
+        }
+
+        .bg-out.for.delivery {
+            background-color: #fd7e14;
+            color: #fff;
+        }
+
+        .bg-delivered {
+            background-color: #28a745;
+            color: #fff;
+        }
+
+        .bg-cancelled {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        /* Hover effect for status badges */
+        .badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        /* Animation for status changes */
+        @keyframes statusUpdate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .badge {
+            animation: statusUpdate 0.5s ease-out;
+        }
     </style>
 </head>
 <body>
+    {% csrf_token %}
     <div class="dashboard-header">
         <div class="container">
             <div class="d-flex justify-content-between align-items-center">
@@ -282,6 +341,25 @@
                 </div>
             {% endfor %}
         {% endif %}
+
+        <!-- Add this right after the dashboard header, before the stats cards -->
+        <div class="container">
+            {% if request.session.delivery_success %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ request.session.delivery_success }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            {% if request.session.delivery_error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                {{ request.session.delivery_error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+        </div>
 
         <!-- Stats Cards -->
         <div class="row stats-row">
@@ -336,7 +414,35 @@
                                         <td>#{{ order.id }}</td>
                                         <td>{{ order.product_name }}</td>
                                         <td>{{ order.quantity }}</td>
-                                        <td><span class="badge bg-{{ order.status|lower }}">{{ order.status }}</span></td>
+                                        <td>
+                                            {% if order.status == 'Out for Delivery' %}
+                                                <button class="btn btn-success btn-sm mark-delivered" 
+                                                        data-order-id="{{ order.id }}"
+                                                        data-pincode="{{ order.zip_code }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deliveryModal">
+                                                    <i class="fas fa-truck me-1"></i>
+                                                    Mark as Delivered
+                                                </button>
+                                            {% else %}
+                                                <span class="badge bg-{{ order.status|lower|cut:' ' }}">
+                                                    {% if order.status == 'On Transit' %}
+                                                        <i class="fas fa-shipping-fast me-1"></i>
+                                                    {% elif order.status == 'Out for Delivery' %}
+                                                        <i class="fas fa-truck me-1"></i>
+                                                    {% elif order.status == 'Delivered' %}
+                                                        <i class="fas fa-check-circle me-1"></i>
+                                                    {% elif order.status == 'Shipped' %}
+                                                        <i class="fas fa-box me-1"></i>
+                                                    {% elif order.status == 'Paid' %}
+                                                        <i class="fas fa-dollar-sign me-1"></i>
+                                                    {% elif order.status == 'Cancelled' %}
+                                                        <i class="fas fa-times-circle me-1"></i>
+                                                    {% endif %}
+                                                    {{ order.status }}
+                                                </span>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {{ order.address_line1 }}<br>
                                             {{ order.city }} - {{ order.zip_code }}
@@ -359,6 +465,131 @@
         </div>
     </div>
 
+    <!-- Delivery Confirmation Modal -->
+    <div class="modal fade" id="deliveryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delivery</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Please ensure you are at the delivery location before confirming.
+                    </div>
+                    <div id="locationStatus" class="alert alert-warning">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Getting your location...
+                    </div>
+                    <div class="alert alert-warning">
+                        <small>Note: You must be at the delivery address to mark the order as delivered.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="confirmDelivery" disabled>
+                        Confirm Delivery
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+    let currentPosition = null;
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    currentPosition = position;
+                    document.getElementById('locationStatus').className = 'alert alert-success';
+                    document.getElementById('locationStatus').innerHTML = 'Location acquired successfully';
+                    document.getElementById('confirmDelivery').disabled = false;
+                },
+                error => {
+                    document.getElementById('locationStatus').className = 'alert alert-danger';
+                    document.getElementById('locationStatus').innerHTML = 'Error getting location: ' + error.message;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            document.getElementById('locationStatus').className = 'alert alert-danger';
+            document.getElementById('locationStatus').innerHTML = 'Geolocation is not supported by this browser';
+        }
+    }
+
+    let currentOrderId = null;
+    let currentPincode = null;
+
+    document.querySelectorAll('.mark-delivered').forEach(button => {
+        button.addEventListener('click', () => {
+            currentOrderId = button.dataset.orderId;
+            currentPincode = button.dataset.pincode;
+            getLocation();
+        });
+    });
+
+    document.getElementById('confirmDelivery').addEventListener('click', async () => {
+        if (!currentPosition || !currentOrderId) return;
+        
+        const { latitude, longitude } = currentPosition.coords;
+        
+        const formData = new FormData();
+        formData.append('latitude', latitude);
+        formData.append('longitude', longitude);
+        formData.append('pincode', currentPincode);  // Use the pincode from the order
+        
+        try {
+            const response = await fetch(`/delivery-manager/update-order/${currentOrderId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                location.reload(); // Refresh the page to show updated status
+            } else {
+                alert(data.message);
+            }
+        } catch (error) {
+            alert('Error updating delivery status');
+            console.error(error);
+        }
+        
+        $('#deliveryModal').modal('hide');
+    });
+
+    // Clear session messages after they're shown
+    window.addEventListener('load', function() {
+        // Remove success message from session after showing
+        {% if request.session.delivery_success %}
+            fetch('/delivery-manager/clear-message/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+        {% endif %}
+        
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            document.querySelectorAll('.alert').forEach(function(alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    });
+    </script>
 </body>
 </html> 
