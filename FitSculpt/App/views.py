@@ -3583,6 +3583,15 @@ def verify_payment(request):
                 order_date__range=(time_window_start, time_window_end)
             ).update(status='Paid')
 
+            # After order status is updated to 'Paid'
+            cursor.execute("""
+                UPDATE app_order o
+                JOIN app_address a ON o.address_id = a.id
+                SET o.status = 'Paid',
+                    o.delivery_center = %s
+                WHERE o.id = %s
+            """, [get_nearest_center(payment.order.address.zip_code), payment.order.id])
+
             return redirect('payment_success')
         except razorpay.errors.SignatureVerificationError:
             print("Payment verification failed.")
@@ -4023,7 +4032,44 @@ def delivery_manager_login(request):
 
 @delivery_manager_required  # You'll need to create this decorator
 def delivery_dashboard(request):
-    return render(request, 'delivery_dashboard.html')
+    delivery_boy_id = request.session.get('delivery_boy_id')
+    
+    with connection.cursor() as cursor:
+        # Get delivery boy's section (center)
+        cursor.execute("""
+            SELECT section 
+            FROM tbl_delivery_boy 
+            WHERE user_id = %s
+        """, [delivery_boy_id])
+        delivery_center = cursor.fetchone()[0]
+        
+        # Get orders for this center that are out for delivery
+        cursor.execute("""
+            SELECT o.id, o.order_date, o.status, p.name as product_name, 
+                   o.quantity, a.address_line1, a.city, a.zip_code,
+                   a.contact_number
+            FROM app_order o
+            JOIN app_product p ON o.product_id = p.id
+            JOIN app_address a ON o.address_id = a.id
+            WHERE o.delivery_center = %s
+            ORDER BY o.order_date ASC
+        """, [delivery_center])
+        orders = dictfetchall(cursor)
+    
+    # Count orders by status
+    shipped_orders = [order for order in orders if order['status'] == 'Shipped']
+    out_for_delivery = [order for order in orders if order['status'] == 'Out for Delivery']
+    delivered_orders = [order for order in orders if order['status'] == 'Delivered']
+    
+    context = {
+        'delivery_boy': {'name': request.session.get('delivery_boy_name')},
+        'orders': orders,
+        'center': delivery_center,
+        'shipped_count': len(shipped_orders),
+        'out_for_delivery_count': len(out_for_delivery),
+        'delivered_count': len(delivered_orders)
+    }
+    return render(request, 'delivery_dashboard.html', context)
 
 @delivery_manager_required
 def delivery_manager_logout(request):

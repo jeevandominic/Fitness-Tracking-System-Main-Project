@@ -284,7 +284,7 @@
         {% endif %}
 
         <!-- Stats Cards -->
-        <div class="row mb-4">
+        <div class="row stats-row">
             <div class="col-md-4">
                 <div class="stats-card text-center">
                     <i class="fas fa-box stats-icon"></i>
@@ -295,82 +295,67 @@
             <div class="col-md-4">
                 <div class="stats-card text-center">
                     <i class="fas fa-shipping-fast stats-icon"></i>
-                    <div class="stats-number">{{ orders|filter_status:'Shipped'|length }}</div>
-                    <div class="stats-label">Orders Shipped</div>
+                    <div class="stats-number">{{ shipped_count }}</div>
+                    <div class="stats-label">Shipped Orders</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="stats-card text-center">
                     <i class="fas fa-check-circle stats-icon"></i>
-                    <div class="stats-number">{{ orders|filter_status:'Delivered'|length }}</div>
-                    <div class="stats-label">Orders Delivered</div>
+                    <div class="stats-number">{{ delivered_count }}</div>
+                    <div class="stats-label">Delivered Orders</div>
                 </div>
             </div>
         </div>
 
-        <div class="orders-section">
-            <h3 class="section-title">Order Management</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Customer Details</th>
-                        <th>Order Date</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td>#{{ order.id }}</td>
-                        <td>{{ order.product.name }}</td>
-                        <td>{{ order.quantity }}</td>
-                        <td>
-                            {{ order.address.address_line1 }}, 
-                            {{ order.address.city }}, 
-                            {{ order.address.state }}<br>
-                            <small class="text-muted">Contact: {{ order.address.contact_number }}</small>
-                        </td>
-                        <td>{{ order.order_date }}</td>
-                        <td>
-                            <span class="status-badge status-{{ order.status|lower }}">
-                                {{ order.status }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if order.status == 'Paid' and order.can_ship %}
-                                <form method="post" action="{% url 'update_order_status' order.id %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="status" value="Shipped">
-                                    <button type="submit" class="btn btn-primary btn-action">
-                                        <i class="fas fa-truck me-1"></i> Ship
-                                    </button>
-                                </form>
-                            {% elif order.status == 'Shipped' and order.can_deliver %}
-                                <form method="post" action="{% url 'update_order_status' order.id %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="status" value="Delivered">
-                                    <button type="submit" class="btn btn-success btn-action">
-                                        <i class="fas fa-check me-1"></i> Deliver
-                                    </button>
-                                </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="no-orders">
-                            <i class="fas fa-box-open"></i>
-                            <h3>No Orders Found</h3>
-                            <p>There are currently no orders to display.</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        
+
+        <!-- Add this section for orders -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-truck me-2"></i> Orders - {{ center }}
+            </div>
+            <div class="card-body">
+                {% if orders %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Status</th>
+                                    <th>Delivery Address</th>
+                                    <th>Contact</th>
+                                    <th>Order Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                    <tr>
+                                        <td>#{{ order.id }}</td>
+                                        <td>{{ order.product_name }}</td>
+                                        <td>{{ order.quantity }}</td>
+                                        <td><span class="badge bg-{{ order.status|lower }}">{{ order.status }}</span></td>
+                                        <td>
+                                            {{ order.address_line1 }}<br>
+                                            {{ order.city }} - {{ order.zip_code }}
+                                        </td>
+                                        <td>{{ order.contact_number }}</td>
+                                        <td>{{ order.order_date|date:"M d, Y" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-box-open"></i>
+                        <h3>No Orders Found</h3>
+                        <p>There are no orders assigned to your center.</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
