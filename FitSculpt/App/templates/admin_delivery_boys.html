@@ -1,0 +1,309 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Delivery Partners - FitSculpt</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+        }
+
+        .content-area {
+            margin-left: 291px;
+            padding: 30px;
+        }
+
+        .section-title {
+            color: #232d39;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #ed563b;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #232d39 0%, #151a20 100%);
+            color: white;
+            font-weight: 600;
+            padding: 15px 20px;
+            border: none;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table th {
+            font-weight: 600;
+            color: #232d39;
+            border-bottom: 2px solid #ed563b;
+        }
+
+        .table td {
+            vertical-align: middle;
+        }
+
+        .badge {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+        }
+
+        .badge-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .badge-approved {
+            background-color: #28a745;
+            color: #fff;
+        }
+
+        .badge-rejected {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        .btn-action {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+        }
+
+        .document-link {
+            color: #ed563b;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .document-link:hover {
+            color: #dc3545;
+        }
+
+        .alert {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #ed563b;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'admin_header.html' %}
+
+    <div class="content-area">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <h1 class="section-title">Manage Delivery Partners</h1>
+
+        <!-- Pending Applications -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-clock me-2"></i> Pending Applications
+            </div>
+            <div class="card-body">
+                {% if pending_delivery_boys %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>City</th>
+                                    <th>Section</th>
+                                    <th>Vehicle Type</th>
+                                    <th>Documents</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for delivery_boy in pending_delivery_boys %}
+                                    <tr>
+                                        <td>{{ delivery_boy.name }}</td>
+                                        <td>{{ delivery_boy.email }}</td>
+                                        <td>{{ delivery_boy.phone }}</td>
+                                        <td>{{ delivery_boy.city }}</td>
+                                        <td>{{ delivery_boy.section }}</td>
+                                        <td>{{ delivery_boy.vehicle_type }}</td>
+                                        <td>
+                                            <a href="{{ delivery_boy.identity_proof.url }}" class="document-link" target="_blank">
+                                                <i class="fas fa-id-card me-1"></i>ID Proof
+                                            </a>
+                                            <br>
+                                            <a href="{{ delivery_boy.vehicle_registration.url }}" class="document-link" target="_blank">
+                                                <i class="fas fa-car me-1"></i>Vehicle Doc
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <form method="post" action="{% url 'accept_delivery_boy' delivery_boy.user_id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-success btn-action">
+                                                    <i class="fas fa-check me-1"></i>Accept
+                                                </button>
+                                            </form>
+                                            <form method="post" action="{% url 'reject_delivery_boy' delivery_boy.user_id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-danger btn-action">
+                                                    <i class="fas fa-times me-1"></i>Reject
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No Pending Applications</h3>
+                        <p>There are no pending delivery partner applications to review.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Approved Delivery Partners -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-check-circle me-2"></i> Approved Delivery Partners
+            </div>
+            <div class="card-body">
+                {% if approved_delivery_boys %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>City</th>
+                                    <th>Section</th>
+                                    <th>Vehicle Type</th>
+                                    <th>Username</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for delivery_boy in approved_delivery_boys %}
+                                    <tr>
+                                        <td>{{ delivery_boy.name }}</td>
+                                        <td>{{ delivery_boy.email }}</td>
+                                        <td>{{ delivery_boy.phone }}</td>
+                                        <td>{{ delivery_boy.city }}</td>
+                                        <td>{{ delivery_boy.section }}</td>
+                                        <td>{{ delivery_boy.vehicle_type }}</td>
+                                        <td>{{ delivery_boy.username }}</td>
+                                        <td><span class="badge badge-approved">Approved</span></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>No Approved Partners</h3>
+                        <p>There are no approved delivery partners yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Rejected Applications -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-times-circle me-2"></i> Rejected Applications
+            </div>
+            <div class="card-body">
+                {% if rejected_delivery_boys %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>City</th>
+                                    <th>Section</th>
+                                    <th>Vehicle Type</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for delivery_boy in rejected_delivery_boys %}
+                                    <tr>
+                                        <td>{{ delivery_boy.name }}</td>
+                                        <td>{{ delivery_boy.email }}</td>
+                                        <td>{{ delivery_boy.phone }}</td>
+                                        <td>{{ delivery_boy.city }}</td>
+                                        <td>{{ delivery_boy.section }}</td>
+                                        <td>{{ delivery_boy.vehicle_type }}</td>
+                                        <td><span class="badge badge-rejected">Rejected</span></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-ban"></i>
+                        <h3>No Rejected Applications</h3>
+                        <p>There are no rejected delivery partner applications.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

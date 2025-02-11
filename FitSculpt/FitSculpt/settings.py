@@ -21,9 +21,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env_path = os.path.join(BASE_DIR, '.env')
 load_dotenv(env_path)
 
-# Print for debugging
-print(f"Loading .env from: {env_path}")
-print(f"Environment variables loaded: {os.environ.keys()}")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -207,4 +204,3 @@ RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
 
     
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-print(f"OpenAI API Key found: {bool(OPENAI_API_KEY)}")

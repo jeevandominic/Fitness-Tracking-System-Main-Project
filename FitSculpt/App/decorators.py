@@ -33,9 +33,11 @@ def admin_custom_login_required(view_func):
 
 def delivery_manager_required(view_func):
     @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
-        if not request.session.get('delivery_manager'):
+    def _wrapped_view(request, *args, **kwargs):
+        if 'delivery_boy_id' in request.session:
+            return view_func(request, *args, **kwargs)
+        else:
+            print(f"User not authenticated. Redirecting to fitness manager login.")
             return redirect('delivery_manager_login')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+    return _wrapped_view
 

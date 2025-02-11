@@ -436,3 +436,29 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"Wishlist Item for User {self.user_id} - Product {self.product.name}"
+
+class DeliveryBoy(models.Model):
+    user_id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100)
+    email = models.CharField(max_length=50)
+    phone = models.CharField(max_length=10)
+    address_line1 = models.CharField(max_length=255)
+    city = models.CharField(max_length=100)
+    section = models.CharField(max_length=50)
+    state = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=6)
+    vehicle_type = models.CharField(max_length=20)
+    identity_type = models.CharField(max_length=20)
+    identity_proof = models.FileField(upload_to='delivery_boy/id_proofs/')
+    vehicle_registration = models.FileField(upload_to='delivery_boy/vehicle_docs/')
+    username = models.CharField(max_length=20, blank=True)
+    password = models.CharField(max_length=20, blank=True)
+    status = models.IntegerField(default=0)  # 0: Pending, 1: Approved, 2: Rejected
+    date_joined = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = 'tbl_delivery_boy'
+
+    def __str__(self):
+        return self.name

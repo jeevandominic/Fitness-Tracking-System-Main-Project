@@ -264,6 +264,7 @@
                 <div>
                     <h1 class="brand-name">FIT<em>SCULPT</em></h1>
                     <h2 class="dashboard-title">Delivery Manager Dashboard</h2>
+                    <h2 class="dashboard-title">Welcome {{request.session.delivery_boy_name}}</h2>
                 </div>
                 <a href="{% url 'delivery_manager_logout' %}" class="btn logout-btn">
                     <i class="fas fa-sign-out-alt me-2"></i>Logout

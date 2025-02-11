@@ -100,6 +100,39 @@
             border-radius: 5px;
             margin-bottom: 1.5rem;
         }
+
+        .btn-outline-primary {
+            border: 2px solid #ed563b;
+            color: #ed563b;
+            padding: 8px 20px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: #ed563b;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .register-link p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        
+        .text-primary {
+            color: #ed563b !important;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .text-primary:hover {
+            color: #da4a2f !important;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -120,7 +153,7 @@
                 {% endfor %}
             {% endif %}
 
-            <form method="post">
+            <form method="post" action="{% url 'delivery_manager_login' %}">
                 {% csrf_token %}
                 <div class="form-group">
                     <label for="username">Username</label>
@@ -132,6 +165,14 @@
                 </div>
                 <button type="submit" class="btn btn-login">Login</button>
             </form>
+
+            <div class="register-link text-center mt-3">
+                <p>Want to become a delivery partner? 
+                    <a href="{% url 'delivery_boy_register' %}" class="btn btn-outline-primary">
+                        <i class="fa fa-user-plus"></i> Register as Delivery Partner
+                    </a>
+                </p>
+            </div>
 
             <div class="back-to-home">
                 <a href="{% url 'index' %}">← Back to Home</a>

@@ -28,8 +28,16 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from datetime import timedelta
 from django.template.defaulttags import register
+from django.utils.crypto import get_random_string
 
- 
+def dictfetchall(cursor):
+    """Return all rows from a cursor as a list of dictionaries"""
+    columns = [col[0] for col in cursor.description]
+    return [
+        dict(zip(columns, row))
+        for row in cursor.fetchall()
+    ]
+
 def index_view(request):
     return render(request, 'index.html')
 
@@ -3415,64 +3423,6 @@ def cancel_order(request, order_id):
     
     return render(request, 'order.html')
 
-def delivery_manager_login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        if username == 'delivery001' and password == 'delivery001':
-            request.session['delivery_manager'] = True
-            return redirect('delivery_dashboard')
-    return render(request, 'delivery_manager_login.html')
-
-@delivery_manager_required  # You'll need to create this decorator
-def delivery_dashboard(request):
-    # Get all orders
-    orders = Order.objects.filter(
-        status__in=['Paid', 'Shipped', 'Delivered']
-    ).select_related('address', 'product').order_by('-order_date')
-    
-    # Calculate shipping and delivery eligibility
-    for order in orders:
-        order.can_ship = (
-            order.status == 'Paid' and 
-            timezone.now() - order.order_date >= timedelta(days=1)
-        )
-        order.can_deliver = (
-            order.status == 'Shipped' and 
-            timezone.now() - order.order_date >= timedelta(days=3)
-        )
-    
-    context = {
-        'orders': orders,
-    }
-    return render(request, 'delivery_dashboard.html', context)
-
-@delivery_manager_required
-def update_order_status(request, order_id):
-    if request.method == 'POST':
-        order = get_object_or_404(Order, id=order_id)
-        new_status = request.POST.get('status')
-        
-        if new_status in ['Shipped', 'Delivered']:
-            # Validate status transition
-            if (new_status == 'Shipped' and order.status == 'Paid' and 
-                timezone.now() - order.order_date >= timedelta(days=1)):
-                order.status = 'Shipped'
-                messages.success(request, f'Order #{order.id} has been marked as shipped')
-            
-            elif (new_status == 'Delivered' and order.status == 'Shipped' and 
-                  timezone.now() - order.order_date >= timedelta(days=3)):
-                order.status = 'Delivered'
-                messages.success(request, f'Order #{order.id} has been marked as delivered')
-            
-            else:
-                messages.error(request, 'Invalid status transition or timing')
-            
-            order.save()
-    
-    return redirect('delivery_dashboard')
-
-
 
 import razorpay
 from django.conf import settings
@@ -3958,11 +3908,7 @@ def update_cart_item(request, item_id):
         'error': 'Invalid request method'
     }, status=405)
 
-@delivery_manager_required
-def delivery_manager_logout(request):
-    if 'delivery_manager' in request.session:
-        del request.session['delivery_manager']
-    return redirect('delivery_manager_login')
+
 
 @register.filter
 def filter_status(orders, status):
@@ -3971,3 +3917,207 @@ def filter_status(orders, status):
 @custom_login_required
 def workout_correction_view(request):
     return render(request, 'workout_correction.html')
+
+
+def delivery_boy_register(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone')
+        address_line1 = request.POST.get('address_line1')
+        city = request.POST.get('city')
+        section = request.POST.get('section')  # Added this line
+        state = request.POST.get('state')
+        zip_code = request.POST.get('zip_code')
+        vehicle_type = request.POST.get('vehicle_type')
+        identity_type = request.POST.get('identity_type')
+        
+        identity_proof = request.FILES.get('identity_proof')
+        vehicle_registration = request.FILES.get('vehicle_registration')
+        
+        # Handle file storage
+        fs = FileSystemStorage()
+        identity_proof_name = fs.save(f'delivery_boy/id_proofs/{identity_proof.name}', identity_proof)
+        vehicle_doc_name = fs.save(f'delivery_boy/vehicle_docs/{vehicle_registration.name}', vehicle_registration)
+
+        with connection.cursor() as cursor:
+            # Check if email already exists
+            cursor.execute("SELECT COUNT(*) FROM tbl_delivery_boy WHERE email = %s", [email])
+            if cursor.fetchone()[0] > 0:
+                messages.error(request, 'Email already registered')
+                return render(request, 'delivery_boy_register.html')
+
+            # Check if phone already exists
+            cursor.execute("SELECT COUNT(*) FROM tbl_delivery_boy WHERE phone = %s", [phone])
+            if cursor.fetchone()[0] > 0:
+                messages.error(request, 'Phone number already registered')
+                return render(request, 'delivery_boy_register.html')
+
+            # Insert new delivery boy
+            cursor.execute("""
+                INSERT INTO tbl_delivery_boy 
+                (name, email, phone, address_line1, city, section, state, zip_code, 
+                vehicle_type, identity_type, identity_proof, vehicle_registration, 
+                status, date_joined)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, NOW())
+            """, [name, email, phone, address_line1, city, section, state, zip_code,
+                  vehicle_type, identity_type, identity_proof_name, vehicle_doc_name])
+
+        messages.success(request, 'Registration successful! Please wait for admin approval.')
+        return redirect('delivery_manager_login')
+
+    # Pass the sections list to the template
+    sections = ['Kozhikode', 'Thrissur', 'Ernakulam', 'Alappuzha', 'Thiruvananthapuram']
+    return render(request, 'delivery_boy_register.html', {'sections': sections})
+
+def delivery_manager_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        print(username,password)
+        with connection.cursor() as cursor:
+            # Print debug information
+            print(f"Attempting login with username: {username}")
+            
+            # First, check if the credentials exist
+            cursor.execute("""
+                SELECT user_id, name, status 
+                FROM tbl_delivery_boy 
+                WHERE username = %s AND password = %s
+            """, [username, password])
+            result = cursor.fetchone()
+            
+            if result:
+                user_id, name, status = result
+                
+                if status == 1:  # Approved
+                    print("hello")
+                    request.session['delivery_boy_id'] = user_id
+                    request.session['delivery_boy_name'] = name
+                    # return render(request, 'delivery_dashboard.html')
+                    # messages.success(request, f'Welcome back, {name}!')
+                    # Fix: Use redirect with URL name, not template
+                    return redirect('delivery_dashboard')  # Changed this line
+                elif status == 0:
+                    messages.error(request, 'Your account is still pending approval.')
+                elif status == 2:
+                    messages.error(request, 'Your application has been rejected.')
+                else:
+                    messages.error(request, 'Invalid account status.')
+            else:
+                messages.error(request, 'Invalid username or password.')
+                
+            # Print debug information if login failed
+            cursor.execute("""
+                SELECT username, status 
+                FROM tbl_delivery_boy 
+                WHERE username = %s
+            """, [username])
+            user_check = cursor.fetchone()
+            if user_check:
+                print(f"User found with status: {user_check[1]}")
+            else:
+                print("No user found with this username")
+    
+    return render(request, 'delivery_manager_login.html')
+
+@delivery_manager_required  # You'll need to create this decorator
+def delivery_dashboard(request):
+    return render(request, 'delivery_dashboard.html')
+
+@delivery_manager_required
+def delivery_manager_logout(request):
+    request.session.flush()
+    return redirect('delivery_manager_login')
+
+@admin_custom_login_required
+def admin_delivery_boys_view(request):
+    with connection.cursor() as cursor:
+        # Fetch pending delivery boys
+        cursor.execute("""
+            SELECT user_id, name, email, phone, city, section, vehicle_type, identity_type, 
+                   identity_proof, vehicle_registration, status
+            FROM tbl_delivery_boy 
+            WHERE status = 0
+        """)
+        pending_delivery_boys = dictfetchall(cursor)
+
+        # Fetch approved delivery boys
+        cursor.execute("""
+            SELECT user_id, name, email, phone, city, section, vehicle_type, username, status
+            FROM tbl_delivery_boy 
+            WHERE status = 1
+        """)
+        approved_delivery_boys = dictfetchall(cursor)
+
+        # Fetch rejected delivery boys
+        cursor.execute("""
+            SELECT user_id, name, email, phone, city, section, vehicle_type, status
+            FROM tbl_delivery_boy 
+            WHERE status = 2
+        """)
+        rejected_delivery_boys = dictfetchall(cursor)
+
+    context = {
+        'pending_delivery_boys': pending_delivery_boys,
+        'approved_delivery_boys': approved_delivery_boys,
+        'rejected_delivery_boys': rejected_delivery_boys
+    }
+    return render(request, 'admin_delivery_boys.html', context)
+@admin_custom_login_required
+def accept_delivery_boy(request, user_id):
+    if request.method == 'POST':
+        with connection.cursor() as cursor:
+            username = get_random_string(8)
+            password = get_random_string(12)
+            
+            cursor.execute("SELECT email FROM tbl_delivery_boy WHERE user_id = %s", [user_id])
+            email = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                UPDATE tbl_delivery_boy 
+                SET status = 1, username = %s, password = %s 
+                WHERE user_id = %s
+            """, [username, password, user_id])
+            
+            # Send email with credentials
+            send_mail(
+                'Your Delivery Partner Account Has Been Approved - FitSculpt',
+                f'Congratulations! Your account has been approved.\n\n'
+                f'Username: {username}\n'
+                f'Password: {password}\n\n'
+                f'You can now login to your delivery dashboard.',
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            
+            messages.success(request, 'Delivery boy approved and credentials sent')
+    
+    return redirect('admin_delivery_boys')
+@admin_custom_login_required
+def reject_delivery_boy(request, user_id):
+    if request.method == 'POST':
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT email FROM tbl_delivery_boy WHERE user_id = %s", [user_id])
+            email = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                UPDATE tbl_delivery_boy 
+                SET status = 2 
+                WHERE user_id = %s
+            """, [user_id])
+            
+            # Send rejection email
+            send_mail(
+                'FitSculpt Delivery Partner Application Status',
+                'We regret to inform you that your application has been rejected. '
+                'Thank you for your interest in joining FitSculpt.',
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            
+            messages.success(request, 'Delivery boy application rejected')
+    
+    return redirect('admin_delivery_boys')

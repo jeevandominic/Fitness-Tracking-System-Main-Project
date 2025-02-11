@@ -145,11 +145,14 @@ urlpatterns = [
     path('chatbot/', views.chatbot_view, name='chatbot'),
     path('update-cart-item/<int:item_id>/', views.update_cart_item, name='update_cart_item'),
     path('cancel-order/<int:order_id>/', views.cancel_order, name='cancel_order'),
+    path('workout-correction/', views.workout_correction_view, name='workout_correction'),
     path('delivery-manager/login/', views.delivery_manager_login, name='delivery_manager_login'),
     path('delivery-manager/dashboard/', views.delivery_dashboard, name='delivery_dashboard'),
-    path('delivery-manager/update-order/<int:order_id>/', views.update_order_status, name='update_order_status'),
     path('delivery-manager/logout/', views.delivery_manager_logout, name='delivery_manager_logout'),
-    path('workout-correction/', views.workout_correction_view, name='workout_correction'),
+    path('delivery-boy/register/', views.delivery_boy_register, name='delivery_boy_register'),
+    path('admin-delivery-boys/', views.admin_delivery_boys_view, name='admin_delivery_boys'),
+    path('admin-delivery-boy/accept/<int:user_id>/', views.accept_delivery_boy, name='accept_delivery_boy'),
+    path('admin-delivery-boy/reject/<int:user_id>/', views.reject_delivery_boy, name='reject_delivery_boy'),
 ]
 if settings.DEBUG:  
 
