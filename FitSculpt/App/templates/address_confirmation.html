@@ -152,7 +152,7 @@
                     <h4>Order Summary</h4>
                     <ul>
                         {% for item in cart_items %}
-                            <li>{{ item.product.name }} (x{{ item.quantity }}) - ₹{{ item.total_price }}</li>
+                            <li>{{ item.name }} (x{{ item.quantity }}) - ₹{{ item.total_price }}</li>
                         {% endfor %}
                     </ul>
                     <p><strong>Total Price:</strong> ₹{{ total_price }}</p>

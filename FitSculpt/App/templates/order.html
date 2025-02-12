@@ -158,6 +158,16 @@
             color: white;
         }
 
+        .status-on-transit {
+            background-color: #6610f2;
+            color: white;
+        }
+
+        .status-out-for-delivery {
+            background-color: #fd7e14;
+            color: white;
+        }
+
         .address-info {
             background: #f8f9fa;
             padding: 15px;
@@ -244,7 +254,7 @@
                         <div class="product-details">Quantity: {{ order.quantity }}</div>
                     </div>
 
-                    <span class="status-badge status-{{ order.status|lower }}">
+                    <span class="status-badge status-{{ order.status|lower|cut:" "|slugify }}">
                         {{ order.status }}
                     </span>
 

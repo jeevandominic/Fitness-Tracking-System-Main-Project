@@ -29,6 +29,7 @@ import json
 from datetime import timedelta
 from django.template.defaulttags import register
 from django.utils.crypto import get_random_string
+from .utils.delivery_utils import get_nearest_center, calculate_distance
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -3435,6 +3436,12 @@ razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZOR
 @custom_login_required
 def initiate_payment(request):
     user_id = request.session.get('user_id')
+    address_id = request.session.get('address_id')
+    
+    if not address_id:
+        messages.error(request, "Please confirm your delivery address first")
+        return redirect('address_confirmation')
+        
     cart_items = Cart.objects.filter(user_id=user_id, status=0)
 
     if not cart_items:
@@ -3457,21 +3464,20 @@ def initiate_payment(request):
             user_id=user_id,
             product=cart_item.product,
             quantity=cart_item.quantity,
-            total_price=cart_item.total_price,  # Use individual item's total price
-            address_id=request.session.get('address_id')  # Make sure this is set in address_confirmation
+            total_price=cart_item.total_price,
+            address_id=address_id  # Use the address_id from session
         )
         orders.append(order)
 
-    # Create a single payment record linked to the first order
-    # (You might want to modify your schema to allow multiple orders per payment)
+    # Create payment record
     payment = Shop_Payment.objects.create(
         user_id=user_id,
-        order=orders[0],  # Link to first order due to current model constraints
+        order=orders[0],
         razorpay_order_id=razorpay_order['id'],
         amount=total_amount,
     )
 
-    # Update cart status and product stock after payment initiation
+    # Update cart status and product stock
     if razorpay_order:
         for cart_item in cart_items:
             product = cart_item.product
@@ -3503,19 +3509,35 @@ from .models import Address, Cart
 
 @custom_login_required
 def address_confirmation(request):
-    if request.method == "POST":
-        user_id = request.session.get('user_id')
+    user_id = request.session.get('user_id')
+    
+    # Get cart items and total price for order summary
+    with connection.cursor() as cursor:
+        # Get cart items
+        cursor.execute("""
+            SELECT c.id, c.quantity, p.name, p.price, (c.quantity * p.price) as total_price
+            FROM app_cart c
+            JOIN app_product p ON c.product_id = p.id
+            WHERE c.user_id = %s AND c.status = 0
+        """, [user_id])
+        cart_items = dictfetchall(cursor)
         
-        # Get coordinates from the form
+        # Calculate total price
+        total_price = sum(item['total_price'] for item in cart_items)
+        
+        # Get existing address if any
+        cursor.execute("""
+            SELECT * FROM app_address 
+            WHERE user_id = %s
+        """, [user_id])
+        address = dictfetchall(cursor)
+        address = address[0] if address else None
+
+    if request.method == "POST":
         latitude = request.POST.get('latitude')
         longitude = request.POST.get('longitude')
         
         with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT * FROM app_address WHERE user_id = %s
-            """, [user_id])
-            address = dictfetchall(cursor)
-            
             if address:
                 # Update existing address
                 cursor.execute("""
@@ -3538,6 +3560,9 @@ def address_confirmation(request):
                     longitude,
                     user_id
                 ])
+                # Get the address ID
+                cursor.execute("SELECT id FROM app_address WHERE user_id = %s", [user_id])
+                address_id = cursor.fetchone()[0]
             else:
                 # Create new address
                 cursor.execute("""
@@ -3554,10 +3579,22 @@ def address_confirmation(request):
                     latitude,
                     longitude
                 ])
+                # Get the last inserted ID
+                cursor.execute("SELECT LAST_INSERT_ID()")
+                address_id = cursor.fetchone()[0]
+            
+            # Store address_id in session
+            request.session['address_id'] = address_id
         
         return redirect('initiate_payment')
     
-    # ... rest of the view code ...
+    # For GET request, render the form
+    context = {
+        'address': address,
+        'cart_items': cart_items,
+        'total_price': total_price
+    }
+    return render(request, 'address_confirmation.html', context)
 
 @csrf_exempt
 def verify_payment(request):
@@ -3597,15 +3634,17 @@ def verify_payment(request):
             ).update(status='Paid')
 
             # After order status is updated to 'Paid'
-            cursor.execute("""
-                UPDATE app_order o
-                JOIN app_address a ON o.address_id = a.id
-                SET o.status = 'Paid',
-                    o.delivery_center = %s
-                WHERE o.id = %s
-            """, [get_nearest_center(payment.order.address.zip_code), payment.order.id])
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE app_order o
+                    JOIN app_address a ON o.address_id = a.id
+                    SET o.status = 'Paid',
+                        o.delivery_center = %s
+                    WHERE o.id = %s
+                """, [get_nearest_center(payment.order.address.zip_code), payment.order.id])
 
             return redirect('payment_success')
+            
         except razorpay.errors.SignatureVerificationError:
             print("Payment verification failed.")
             print("Razorpay Order ID:", razorpay_order_id)
