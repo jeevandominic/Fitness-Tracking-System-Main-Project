@@ -385,6 +385,8 @@ class Order(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     order_date = models.DateTimeField(default=now)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    delivery_otp = models.CharField(max_length=6, null=True, blank=True)  # Add this field
+    otp_created_at = models.DateTimeField(null=True, blank=True)  # Add this field
 
     def __str__(self):
         return f"Order #{self.id} - {self.status}"

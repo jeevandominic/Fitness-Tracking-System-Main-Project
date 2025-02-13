@@ -153,7 +153,7 @@ urlpatterns = [
     path('admin-delivery-boys/', views.admin_delivery_boys_view, name='admin_delivery_boys'),
     path('admin-delivery-boy/accept/<int:user_id>/', views.accept_delivery_boy, name='accept_delivery_boy'),
     path('admin-delivery-boy/reject/<int:user_id>/', views.reject_delivery_boy, name='reject_delivery_boy'),
-    path('delivery-manager/update-order/<int:order_id>', views.update_order_status, name='update_order_status'),
+    path('delivery-manager/update-order/<int:order_id>/', views.update_order_status, name='update_order_status'),
     path('delivery-manager/clear-message/', views.clear_delivery_message, name='clear_delivery_message'),
 ]
 if settings.DEBUG:  

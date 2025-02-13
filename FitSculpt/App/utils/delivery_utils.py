@@ -77,3 +77,36 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     distance = R * c
     
     return distance 
+
+def get_pincode_coordinates(pincode):
+    """
+    Get approximate coordinates for Kerala pincodes
+    Returns (latitude, longitude) tuple
+    """
+    # Mapping of major Kerala pincodes to their approximate coordinates
+    PINCODE_COORDS = {
+        # Thiruvananthapuram
+        '695001': (8.4855, 76.9492),
+        '695024': (8.5459, 76.9062),
+        # Ernakulam
+        '682001': (9.9816, 76.2999),
+        '682016': (10.0261, 76.3125),
+        # Kozhikode
+        '673001': (11.2588, 75.7804),
+        '673016': (11.2729, 75.7874),
+        # Thrissur
+        '680001': (10.5276, 76.2144),
+        '680021': (10.5155, 76.2134),
+        # Alappuzha
+        '688001': (9.4981, 76.3388),
+        '688013': (9.4900, 76.3233),
+    }
+    
+    # Default coordinates for unknown pincodes (center of Kerala)
+    DEFAULT_LAT, DEFAULT_LNG = 10.1632, 76.6413
+    
+    # Get first 6 digits of pincode
+    pincode_prefix = str(pincode)[:6]
+    
+    # Return coordinates if found, otherwise return default
+    return PINCODE_COORDS.get(pincode_prefix, (DEFAULT_LAT, DEFAULT_LNG)) 

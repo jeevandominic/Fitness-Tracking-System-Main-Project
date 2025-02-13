@@ -29,7 +29,12 @@ import json
 from datetime import timedelta
 from django.template.defaulttags import register
 from django.utils.crypto import get_random_string
-from .utils.delivery_utils import get_nearest_center, calculate_distance
+from .utils.delivery_utils import get_nearest_center, calculate_distance, get_pincode_coordinates
+import random
+from datetime import datetime, timedelta
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt  # Only for testing
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -3534,8 +3539,9 @@ def address_confirmation(request):
         address = address[0] if address else None
 
     if request.method == "POST":
-        latitude = request.POST.get('latitude')
-        longitude = request.POST.get('longitude')
+        # Get coordinates for the ZIP code instead of using client's location
+        zip_code = request.POST.get("zip_code")
+        latitude, longitude = get_pincode_coordinates(zip_code)
         
         with connection.cursor() as cursor:
             if address:
@@ -3554,10 +3560,10 @@ def address_confirmation(request):
                     request.POST.get("address_line1"),
                     request.POST.get("city"),
                     request.POST.get("state"),
-                    request.POST.get("zip_code"),
+                    zip_code,
                     request.POST.get("contact_number"),
-                    latitude,
-                    longitude,
+                    latitude,  # Using ZIP code coordinates
+                    longitude, # Using ZIP code coordinates
                     user_id
                 ])
                 # Get the address ID
@@ -3574,10 +3580,10 @@ def address_confirmation(request):
                     request.POST.get("address_line1"),
                     request.POST.get("city"),
                     request.POST.get("state"),
-                    request.POST.get("zip_code"),
+                    zip_code,
                     request.POST.get("contact_number"),
-                    latitude,
-                    longitude
+                    latitude,  # Using ZIP code coordinates
+                    longitude  # Using ZIP code coordinates
                 ])
                 # Get the last inserted ID
                 cursor.execute("SELECT LAST_INSERT_ID()")
@@ -4104,7 +4110,7 @@ def delivery_dashboard(request):
             JOIN app_product p ON o.product_id = p.id
             JOIN app_address a ON o.address_id = a.id
             WHERE o.delivery_center = %s
-            ORDER BY o.order_date ASC
+            ORDER BY o.order_date DESC
         """, [delivery_center])
         orders = dictfetchall(cursor)
     
@@ -4222,82 +4228,146 @@ def reject_delivery_boy(request, user_id):
 
 @delivery_manager_required
 def update_order_status(request, order_id):
-    if request.method == 'POST':
-        try:
-            # Get delivery location from POST data
-            delivery_lat = float(request.POST.get('latitude'))
-            delivery_lng = float(request.POST.get('longitude'))
-            delivery_pincode = request.POST.get('pincode')
-            
-            with connection.cursor() as cursor:
-                # Get order details including delivery address coordinates
-                cursor.execute("""
-                    SELECT o.status, a.zip_code, a.delivery_latitude, a.delivery_longitude 
-                    FROM app_order o
-                    JOIN app_address a ON o.address_id = a.id
-                    WHERE o.id = %s
-                """, [order_id])
-                order = dictfetchall(cursor)[0]
-                
-                # Check if delivery coordinates exist
-                if order['delivery_latitude'] is None or order['delivery_longitude'] is None:
-                    # If no coordinates, just verify pincode
-                    if delivery_pincode == order['zip_code']:
-                        cursor.execute("""
-                            UPDATE app_order 
-                            SET status = 'Delivered',
-                                delivered_at = NOW(),
-                                delivery_latitude = %s,
-                                delivery_longitude = %s
-                            WHERE id = %s
-                        """, [delivery_lat, delivery_lng, order_id])
-                        
-                        request.session['delivery_success'] = f'Order #{order_id} has been successfully delivered!'
-                        return JsonResponse({
-                            'success': True,
-                            'message': 'Order marked as delivered successfully'
-                        })
-                else:
-                    # Calculate distance between delivery location and address
-                    distance = calculate_distance(
-                        delivery_lat, delivery_lng,
-                        float(order['delivery_latitude']), float(order['delivery_longitude'])
-                    )
-                    
-                    # Verify both pincode and distance (500 meters threshold)
-                    if delivery_pincode == order['zip_code'] and distance <= 500:
-                        cursor.execute("""
-                            UPDATE app_order 
-                            SET status = 'Delivered',
-                                delivered_at = NOW(),
-                                delivery_latitude = %s,
-                                delivery_longitude = %s
-                            WHERE id = %s
-                        """, [delivery_lat, delivery_lng, order_id])
-                        
-                        request.session['delivery_success'] = f'Order #{order_id} has been successfully delivered!'
-                        return JsonResponse({
-                            'success': True,
-                            'message': 'Order marked as delivered successfully'
-                        })
-                
-                request.session['delivery_error'] = 'Unable to mark order as delivered. Please ensure you are at the correct delivery location.'
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Delivery location does not match the delivery address. Please ensure you are at the correct location.'
-                }, status=400)
-                
-        except Exception as e:
-            request.session['delivery_error'] = 'An error occurred while updating the order status.'
+    try:
+        delivery_lat = float(request.POST.get('latitude', 0))
+        delivery_lng = float(request.POST.get('longitude', 0))
+        delivery_pincode = request.POST.get('pincode')
+        entered_otp = request.POST.get('otp')
+
+        print(f"Delivery Boy Location Details:")
+        print(f"Latitude: {delivery_lat}")
+        print(f"Longitude: {delivery_lng}")
+        print(f"Delivery Boy Pincode: {delivery_pincode}")
+
+        if not all([delivery_lat, delivery_lng, delivery_pincode]):
             return JsonResponse({
                 'success': False,
-                'message': str(e)
-            }, status=500)
-    
-    return JsonResponse({
-        'success': False,
-        'message': 'Invalid request method'
-    }, status=405)
+                'message': 'Missing required delivery information'
+            }, status=400)
+
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT o.id, o.status, o.delivery_otp, o.otp_created_at, 
+                       a.zip_code, c.email 
+                FROM app_order AS o
+                INNER JOIN app_address AS a ON o.address_id = a.id
+                INNER JOIN client AS c ON o.user_id = c.user_id
+                WHERE o.id = %s
+            """, [order_id])
+            
+            result = dictfetchall(cursor)
+            if not result:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Order not found'
+                }, status=404)
+                
+            result = result[0]
+            
+            print(f"Delivery Address Details:")
+            print(f"Order ID: {result['id']}")
+            print(f"Client Pincode: {result['zip_code']}")
+            print(f"Comparing Pincodes: {delivery_pincode} == {result['zip_code']}")
+            
+            # Strict pincode comparison
+            if str(delivery_pincode).strip() != str(result['zip_code']).strip():
+                print(f"Pincode mismatch! Delivery Boy: {delivery_pincode}, Client: {result['zip_code']}")
+                return JsonResponse({
+                    'success': False,
+                    'message': f'You are currently in pincode {delivery_pincode}. Please go to delivery address pincode {result["zip_code"]} to proceed with delivery.'
+                }, status=400)
+
+            print("Pincode verification passed!")
+
+            # Handle OTP verification or generation
+            if entered_otp:
+                print(f"Verifying OTP: {entered_otp} against {result['delivery_otp']}")
+                
+                if not result['delivery_otp']:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'No OTP has been generated. Please request a new OTP.'
+                    }, status=400)
+                    
+                if result['otp_created_at'] and \
+                   datetime.now() - result['otp_created_at'] > timedelta(minutes=5):
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'OTP has expired. Please request a new OTP.'
+                    }, status=400)
+                    
+                if entered_otp != result['delivery_otp']:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Invalid OTP'
+                    }, status=400)
+                
+                try:
+                    # OTP is valid, update order status
+                    cursor.execute("""
+                        UPDATE app_order 
+                        SET status = 'Delivered',
+                            delivered_at = NOW(),
+                            delivery_latitude = %s,
+                            delivery_longitude = %s
+                        WHERE id = %s
+                    """, [delivery_lat, delivery_lng, order_id])
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Order marked as delivered successfully'
+                    })
+                except Exception as e:
+                    print(f"Error updating order status: {e}")
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Error updating order status in database'
+                    }, status=500)
+            else:
+                # Generate new OTP
+                new_otp = ''.join(random.choices('0123456789', k=6))
+                otp_created_at = datetime.now()
+                
+                print(f"Generating new OTP: {new_otp}")
+                
+                try:
+                    # Update order with new OTP
+                    cursor.execute("""
+                        UPDATE app_order 
+                        SET delivery_otp = %s,
+                            otp_created_at = %s
+                        WHERE id = %s
+                    """, [new_otp, otp_created_at, order_id])
+                    
+                    # Send OTP to user's email
+                    send_mail(
+                        'Delivery OTP for Your FitSculpt Order',
+                        f'Your delivery OTP is: {new_otp}\nValid for 5 minutes.',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [result['email']],
+                        fail_silently=False,
+                    )
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'OTP has been sent to customer email',
+                        'requireOTP': True
+                    })
+                except Exception as e:
+                    print(f"Error generating/sending OTP: {e}")
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Error generating or sending OTP'
+                    }, status=500)
+            
+    except Exception as e:
+        print(f"Error in update_order_status: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({
+            'success': False,
+            'message': f'Error processing request: {str(e)}'
+        }, status=500)
 
 @delivery_manager_required
 def clear_delivery_message(request):
