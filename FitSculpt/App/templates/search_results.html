@@ -1,0 +1,139 @@
+{% load static %}
+
+{% for user in users %}
+<div class="user-card">
+    <div class="user-info" onclick="location.href='{% url 'view_user_profile' user.user_id %}'">
+        {% if user.profile_picture_url %}
+            <img src="{{ user.profile_picture_url }}" alt="Profile">
+        {% else %}
+            <img src="{% static 'images/default_profile.png' %}" alt="Profile">
+        {% endif %}
+        <div class="user-details">
+            <h3>{{ user.name }}</h3>
+            <span>{{ user.posts_count }} posts</span>
+        </div>
+    </div>
+    <div class="user-actions">
+        <button class="follow-btn {% if user.is_following %}following{% endif %}"
+                onclick="event.stopPropagation(); toggleFollow({{ user.user_id }})">
+            <i class="fas {% if user.is_following %}fa-user-check{% else %}fa-user-plus{% endif %}"></i>
+            <span>{{ user.is_following|yesno:"Following,Follow" }}</span>
+        </button>
+        <button class="message-btn" onclick="event.stopPropagation(); window.location.href='{% url 'community_messenger' %}?user={{ user.user_id }}'">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+{% empty %}
+<div class="no-results">
+    <i class="fas fa-search"></i>
+    <p>No users found</p>
+</div>
+{% endfor %}
+
+<style>
+.user-card {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+}
+
+.user-info img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-details h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.user-details span {
+    font-size: 13px;
+    color: #666;
+}
+
+.user-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.follow-btn {
+    padding: 8px 20px;
+    border-radius: 20px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s ease;
+}
+
+.follow-btn:not(.following) {
+    background: #ed563b;
+    color: white;
+}
+
+.follow-btn.following {
+    background: #eee;
+    color: #333;
+}
+
+.follow-btn:hover {
+    transform: translateY(-2px);
+}
+
+.message-btn {
+    background: #ed563b;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.message-btn:hover {
+    background: #dc4c31;
+    transform: scale(1.1);
+}
+</style>
+
+<script>
+function toggleFollow(userId) {
+    fetch(`/community/follow/${userId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Refresh the search results
+            const query = document.getElementById('searchInput').value;
+            performLiveSearch(query);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script> 

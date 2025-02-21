@@ -1,0 +1,173 @@
+{% extends 'community_base.html' %}
+
+{% block sub_header %}
+<h2 class="sub-header">Find People</h2>
+{% endblock %}
+
+{% block content %}
+{% load static %}
+{% csrf_token %}
+
+<div class="search-container">
+    <div class="search-box">
+        <input type="text" 
+               id="searchInput" 
+               placeholder="Search users..." 
+               value="{{ query }}" 
+               class="search-input"
+               oninput="performLiveSearch(this.value)">
+    </div>
+
+    <div id="searchResults" class="users-list">
+        {% include 'search_results.html' %}
+    </div>
+</div>
+
+<style>
+.search-container {
+    margin: 80px auto 100px;
+    max-width: 600px;
+    padding: 0 20px;
+}
+
+.search-box {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.search-box form {
+    display: flex;
+    gap: 10px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #eee;
+    border-radius: 25px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: #ed563b;
+    outline: none;
+}
+
+.search-btn {
+    background: #ed563b;
+    color: white;
+    border: none;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+    background: #dc4c31;
+    transform: scale(1.05);
+}
+
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.user-card {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-details h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.user-details span {
+    font-size: 13px;
+    color: #666;
+}
+
+.message-btn {
+    background: #ed563b;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.message-btn:hover {
+    background: #dc4c31;
+    transform: scale(1.1);
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.no-results i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #ccc;
+}
+</style>
+
+<script>
+let searchTimeout;
+
+function performLiveSearch(query) {
+    clearTimeout(searchTimeout);
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`{% url 'community_search' %}?q=${encodeURIComponent(query)}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('searchResults').innerHTML = html;
+        })
+        .catch(error => console.error('Error:', error));
+    }, 300); // Debounce time of 300ms
+}
+</script>
+{% endblock %} 

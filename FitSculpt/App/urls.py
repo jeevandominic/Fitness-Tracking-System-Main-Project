@@ -155,6 +155,17 @@ urlpatterns = [
     path('admin-delivery-boy/reject/<int:user_id>/', views.reject_delivery_boy, name='reject_delivery_boy'),
     path('delivery-manager/update-order/<int:order_id>/', views.update_order_status, name='update_order_status'),
     path('delivery-manager/clear-message/', views.clear_delivery_message, name='clear_delivery_message'),
+    path('community/', views.community_view, name='community'),
+    path('community/like/<int:post_id>/', views.like_post, name='like_post'),
+    path('community/comment/<int:post_id>/', views.add_comment, name='add_comment'),
+    path('community/profile/', views.community_profile, name='community_profile'),
+    path('community/search/', views.community_search, name='community_search'),
+    path('community/messenger/', views.community_messenger, name='community_messenger'),
+    path('community/send-message/', views.send_message, name='send_message'),
+    path('community/user/<int:user_id>/', views.view_user_profile, name='view_user_profile'),
+    path('community/post/<int:post_id>/', views.get_post_details, name='get_post_details'),
+    path('community/post/<int:post_id>/delete/', views.delete_post, name='delete_post'),
+    path('community/follow/<int:user_id>/', views.toggle_follow, name='toggle_follow'),
 ]
 if settings.DEBUG:  
 

@@ -1,0 +1,167 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FitSculpt Community</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="{% static 'js/community.js' %}"></script>
+    <style>
+        /* Common styles for all community pages */
+        .community-header {
+            background: #fff;
+            padding: 15px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .brand-link {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .brand-link h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #ed563b;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            box-shadow: 0 -2px 20px rgba(0,0,0,0.15);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+            font-size: 12px;
+            gap: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item i {
+            font-size: 22px;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .nav-item.active {
+            color: #ed563b;
+        }
+
+        .nav-item:hover {
+            color: #ed563b;
+        }
+
+        .return-btn {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: #ed563b;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(237, 86, 59, 0.3);
+            transition: all 0.3s ease;
+            z-index: 101;
+        }
+
+        .return-btn:hover {
+            background: #dc4c31;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(237, 86, 59, 0.4);
+        }
+
+        .page-header {
+            background: #fff;
+            padding: 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .main-title {
+            color: #ed563b;
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+            text-align: center;
+        }
+
+        .sub-header {
+            color: #333;
+            font-size: 18px;
+            margin: 10px 0 0;
+            text-align: center;
+        }
+
+        .content-wrapper {
+            margin-top: 120px;  /* Adjusted to accommodate both headers */
+            padding-bottom: 80px;
+        }
+        
+
+        /* Add any other common styles here */
+    </style>
+</head>
+<body>
+    {% csrf_token %}
+    <div class="page-header">
+        <h1 class="main-title">FitSculpt Community</h1>
+        {% block sub_header %}{% endblock %}
+    </div>
+
+    <div class="content-wrapper">
+        {% block content %}{% endblock %}
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="{% url 'community' %}" class="nav-item {% if request.resolver_match.url_name == 'community' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="{% url 'community_search' %}" class="nav-item {% if request.resolver_match.url_name == 'community_search' %}active{% endif %}">
+            <i class="fas fa-users"></i>
+            <span>Find People</span>
+        </a>
+        <a href="{% url 'community_messenger' %}" class="nav-item {% if request.resolver_match.url_name == 'community_messenger' %}active{% endif %}">
+            <i class="fas fa-paper-plane"></i>
+            <span>Messages</span>
+        </a>
+        <a href="{% url 'community_profile' %}" class="nav-item {% if request.resolver_match.url_name == 'community_profile' %}active{% endif %}">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <a href="{% url 'user_home' %}" class="return-btn">
+        Return to FitSculpt
+    </a>
+</body>
+</html> 

@@ -4378,3 +4378,645 @@ def clear_delivery_message(request):
             del request.session['delivery_error']
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=405)
+
+@custom_login_required
+def community_view(request):
+    user_id = request.session.get('user_id')
+    
+    if request.method == 'POST':
+        content = request.POST.get('content')
+        image = request.FILES.get('image')
+        
+        try:
+            # Handle image upload
+            image_path = None
+            if image:
+                fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'community_posts'))
+                filename = fs.save(image.name, image)
+                image_path = f'community_posts/{filename}'
+            
+            with connection.cursor() as cursor:
+                if image_path:
+                    cursor.execute("""
+                        INSERT INTO tbl_community_posts (user_id, content, image, created_at, likes)
+                        VALUES (%s, %s, %s, NOW(), 0)
+                    """, [user_id, content, image_path])
+                else:
+                    cursor.execute("""
+                        INSERT INTO tbl_community_posts (user_id, content, created_at, likes)
+                        VALUES (%s, %s, NOW(), 0)
+                    """, [user_id, content])
+                
+            messages.success(request, 'Post created successfully!')
+            return redirect('community')
+        except Exception as e:
+            print(f"Error creating post: {str(e)}")
+            messages.error(request, f'Error creating post: {str(e)}')
+    
+    # Get all posts with user details
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT 
+                cp.id,
+                cp.user_id,
+                cp.content,
+                cp.image,
+                cp.created_at,
+                cp.likes,
+                c.name,
+                c.profile_picture 
+            FROM tbl_community_posts cp
+            JOIN client c ON cp.user_id = c.user_id
+            ORDER BY cp.created_at DESC
+        """)
+        posts = dictfetchall(cursor)
+        
+        # Process image URLs
+        for post in posts:
+            if post['image']:
+                post['image_url'] = f"{settings.MEDIA_URL}{post['image']}"
+            if post['profile_picture']:
+                post['profile_picture_url'] = f"{settings.MEDIA_URL}{post['profile_picture']}"
+        
+        # Get comments for each post
+        for post in posts:
+            cursor.execute("""
+                SELECT pc.*, c.name, c.profile_picture 
+                FROM tbl_post_comments pc
+                JOIN client c ON pc.user_id = c.user_id
+                WHERE pc.post_id = %s
+                ORDER BY pc.created_at DESC
+            """, [post['id']])
+            comments = dictfetchall(cursor)
+            
+            # Process profile pictures for comments
+            for comment in comments:
+                if comment['profile_picture']:
+                    comment['profile_picture_url'] = f"{settings.MEDIA_URL}{comment['profile_picture']}"
+            
+            post['comments'] = comments
+            
+            # Check if current user has liked the post
+            cursor.execute("""
+                SELECT COUNT(*) as liked
+                FROM tbl_post_likes
+                WHERE post_id = %s AND user_id = %s
+            """, [post['id'], user_id])
+            post['user_has_liked'] = dictfetchall(cursor)[0]['liked'] > 0
+    
+    return render(request, 'community.html', {'posts': posts})
+
+@custom_login_required
+def like_post(request, post_id):
+    user_id = request.session.get('user_id')
+    
+    try:
+        with connection.cursor() as cursor:
+            # Check if user has already liked the post
+            cursor.execute("""
+                SELECT COUNT(*) as liked
+                FROM tbl_post_likes
+                WHERE post_id = %s AND user_id = %s
+            """, [post_id, user_id])
+            
+            already_liked = dictfetchall(cursor)[0]['liked'] > 0
+            
+            if already_liked:
+                # Unlike the post
+                cursor.execute("""
+                    DELETE FROM tbl_post_likes
+                    WHERE post_id = %s AND user_id = %s
+                """, [post_id, user_id])
+                
+                # Update post likes count
+                cursor.execute("""
+                    UPDATE tbl_community_posts
+                    SET likes = likes - 1
+                    WHERE id = %s
+                """, [post_id])
+                
+                return JsonResponse({'status': 'unliked', 'likes': get_post_likes(post_id)})
+            else:
+                # Like the post
+                cursor.execute("""
+                    INSERT INTO tbl_post_likes (post_id, user_id, created_at)
+                    VALUES (%s, %s, NOW())
+                """, [post_id, user_id])
+                
+                # Update post likes count
+                cursor.execute("""
+                    UPDATE tbl_community_posts
+                    SET likes = likes + 1
+                    WHERE id = %s
+                """, [post_id])
+                
+                return JsonResponse({'status': 'liked', 'likes': get_post_likes(post_id)})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@custom_login_required
+def add_comment(request, post_id):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        comment = request.POST.get('comment')
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO tbl_post_comments (post_id, user_id, comment, created_at)
+                    VALUES (%s, %s, %s, NOW())
+                """, [post_id, user_id, comment])
+                
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+def get_post_likes(post_id):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT likes FROM tbl_community_posts WHERE id = %s
+        """, [post_id])
+        return dictfetchall(cursor)[0]['likes']
+
+@custom_login_required
+def community_profile(request):
+    user_id = request.session.get('user_id')
+    viewing_user_id = user_id  # Add this line - in profile view, viewer is the same as profile owner
+    
+    with connection.cursor() as cursor:
+        # Get user profile
+        cursor.execute("""
+            SELECT name, profile_picture
+            FROM client
+            WHERE user_id = %s
+        """, [user_id])
+        user_profile = dictfetchall(cursor)[0]
+        
+        if user_profile['profile_picture']:
+            user_profile['profile_picture_url'] = f"{settings.MEDIA_URL}{user_profile['profile_picture']}"
+        
+        # Get followers and following counts
+        followers_count, following_count = get_follow_counts(cursor, user_id)
+        
+        # Get followers list with their follow status
+        cursor.execute("""
+            SELECT c.user_id, c.name, c.profile_picture,
+                   EXISTS(SELECT 1 FROM tbl_followers 
+                         WHERE follower_id = %s AND following_id = c.user_id) as is_following
+            FROM tbl_followers f
+            JOIN client c ON f.follower_id = c.user_id
+            WHERE f.following_id = %s
+        """, [viewing_user_id, user_id])
+        followers = dictfetchall(cursor)
+        
+        # Get following list
+        cursor.execute("""
+            SELECT c.user_id, c.name, c.profile_picture,
+                   EXISTS(SELECT 1 FROM tbl_followers 
+                         WHERE follower_id = %s AND following_id = c.user_id) as is_following
+            FROM tbl_followers f
+            JOIN client c ON f.following_id = c.user_id
+            WHERE f.follower_id = %s
+        """, [viewing_user_id, user_id])
+        following = dictfetchall(cursor)
+        
+        # Process profile pictures
+        for user in followers + following:
+            if user['profile_picture']:
+                user['profile_picture_url'] = f"{settings.MEDIA_URL}{user['profile_picture']}"
+        
+        # Get user's posts with likes count and comments count
+        cursor.execute("""
+            SELECT cp.*, 
+                   (SELECT COUNT(*) FROM tbl_post_likes WHERE post_id = cp.id) as likes_count,
+                   (SELECT COUNT(*) FROM tbl_post_comments WHERE post_id = cp.id) as comments_count,
+                   EXISTS(SELECT 1 FROM tbl_post_likes WHERE post_id = cp.id AND user_id = %s) as user_has_liked
+            FROM tbl_community_posts cp
+            WHERE cp.user_id = %s
+            ORDER BY cp.created_at DESC
+        """, [viewing_user_id, user_id])
+        posts = dictfetchall(cursor)
+        
+        # Process posts
+        for post in posts:
+            if post['image']:
+                post['image_url'] = f"{settings.MEDIA_URL}{post['image']}"
+            
+            cursor.execute("""
+                SELECT pc.*, c.name, c.profile_picture
+                FROM tbl_post_comments pc
+                JOIN client c ON pc.user_id = c.user_id
+                WHERE pc.post_id = %s
+                ORDER BY pc.created_at DESC
+            """, [post['id']])
+            post['comments'] = dictfetchall(cursor)
+    
+    context = {
+        'user_profile': user_profile,
+        'followers_count': followers_count,
+        'following_count': following_count,
+        'followers': followers,
+        'following': following,
+        'user_posts': posts,
+        'posts_count': len(posts),
+        'profile_view': True
+    }
+    
+    return render(request, 'community_profile.html', context)
+
+@custom_login_required
+def community_search(request):
+    query = request.GET.get('q', '')
+    viewing_user_id = request.session.get('user_id')
+    
+    with connection.cursor() as cursor:
+        if query:
+            cursor.execute("""
+                SELECT c.user_id, c.name, c.profile_picture,
+                       (SELECT COUNT(*) FROM tbl_community_posts WHERE user_id = c.user_id) as posts_count,
+                       EXISTS(SELECT 1 FROM tbl_followers 
+                            WHERE follower_id = %s AND following_id = c.user_id) as is_following
+                FROM client c
+                WHERE c.name LIKE %s AND c.status = 1 AND c.user_id != %s
+                ORDER BY c.name
+            """, [viewing_user_id, f'%{query}%', viewing_user_id])
+        else:
+            cursor.execute("""
+                SELECT c.user_id, c.name, c.profile_picture,
+                       (SELECT COUNT(*) FROM tbl_community_posts WHERE user_id = c.user_id) as posts_count,
+                       EXISTS(SELECT 1 FROM tbl_followers 
+                            WHERE follower_id = %s AND following_id = c.user_id) as is_following
+                FROM client c
+                WHERE c.status = 1 AND c.user_id != %s
+                ORDER BY c.name
+            """, [viewing_user_id, viewing_user_id])
+        
+        users = dictfetchall(cursor)
+        
+        for user in users:
+            if user['profile_picture']:
+                user['profile_picture_url'] = f"{settings.MEDIA_URL}{user['profile_picture']}"
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'search_results.html', {'users': users})
+    
+    return render(request, 'community_search.html', {
+        'users': users,
+        'query': query
+    })
+
+@custom_login_required
+def community_messenger(request):
+    user_id = request.session.get('user_id')
+    chat_with = request.GET.get('user')
+    
+    with connection.cursor() as cursor:
+        # Get all chats ordered by most recent message
+        cursor.execute("""
+            SELECT DISTINCT 
+                c.user_id, c.name, c.profile_picture,
+                (SELECT content 
+                 FROM tbl_community_messages 
+                 WHERE (sender_id = c.user_id AND recipient_id = %s)
+                    OR (sender_id = %s AND recipient_id = c.user_id)
+                 ORDER BY created_at DESC
+                 LIMIT 1) as last_message,
+                (SELECT created_at
+                 FROM tbl_community_messages 
+                 WHERE (sender_id = c.user_id AND recipient_id = %s)
+                    OR (sender_id = %s AND recipient_id = c.user_id)
+                 ORDER BY created_at DESC
+                 LIMIT 1) as last_message_time
+            FROM tbl_community_messages m
+            JOIN client c ON (m.sender_id = c.user_id OR m.recipient_id = c.user_id)
+            WHERE (m.sender_id = %s OR m.recipient_id = %s)
+                AND c.user_id != %s
+            GROUP BY c.user_id, c.name, c.profile_picture
+            ORDER BY last_message_time DESC  # Added this ORDER BY clause
+        """, [user_id, user_id, user_id, user_id, user_id, user_id, user_id])
+        
+        chats = dictfetchall(cursor)
+        
+        # Add profile picture URLs
+        for chat in chats:
+            if chat['profile_picture']:
+                chat['profile_picture_url'] = f"{settings.MEDIA_URL}{chat['profile_picture']}"
+        
+        active_chat = None
+        messages = []
+        
+        if chat_with:
+            # Get active chat user details
+            cursor.execute("""
+                SELECT user_id, name, profile_picture
+                FROM client
+                WHERE user_id = %s
+            """, [chat_with])
+            active_chat = dictfetchall(cursor)[0]
+            
+            # Add profile picture URL for active chat
+            if active_chat['profile_picture']:
+                active_chat['profile_picture_url'] = f"{settings.MEDIA_URL}{active_chat['profile_picture']}"
+            
+            # Get messages
+            cursor.execute("""
+                SELECT *
+                FROM tbl_community_messages
+                WHERE (sender_id = %s AND recipient_id = %s)
+                   OR (sender_id = %s AND recipient_id = %s)
+                ORDER BY created_at
+            """, [user_id, chat_with, chat_with, user_id])
+            messages = dictfetchall(cursor)
+    
+    return render(request, 'community_messenger.html', {
+        'chats': chats,
+        'active_chat': active_chat,
+        'messages': messages
+    })
+
+@custom_login_required
+def send_message(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_id = request.session.get('user_id')
+        recipient_id = data.get('recipient_id')
+        message = data.get('message')
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO tbl_community_messages (sender_id, recipient_id, content, created_at)
+                    VALUES (%s, %s, %s, NOW())
+                """, [user_id, recipient_id, message])
+                
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
+@custom_login_required
+def view_user_profile(request, user_id):
+    viewing_user_id = request.session.get('user_id')
+    
+    with connection.cursor() as cursor:
+        # Get user details
+        cursor.execute("""
+            SELECT user_id, name, profile_picture
+            FROM client
+            WHERE user_id = %s AND status = 1
+        """, [user_id])
+        user_result = dictfetchall(cursor)
+        
+        if not user_result:
+            messages.error(request, "User not found")
+            return redirect('community')
+            
+        viewed_user = user_result[0]
+        if viewed_user['profile_picture']:
+            viewed_user['profile_picture_url'] = f"{settings.MEDIA_URL}{viewed_user['profile_picture']}"
+        
+        # Check if the viewing user is following this user
+        cursor.execute("""
+            SELECT EXISTS(
+                SELECT 1 FROM tbl_followers 
+                WHERE follower_id = %s AND following_id = %s
+            ) as is_following
+        """, [viewing_user_id, user_id])
+        is_following = cursor.fetchone()[0]
+        
+        # Get followers and following counts
+        followers_count, following_count = get_follow_counts(cursor, user_id)
+        
+        # Get followers list with their follow status
+        cursor.execute("""
+            SELECT c.user_id, c.name, c.profile_picture,
+                   EXISTS(SELECT 1 FROM tbl_followers 
+                         WHERE follower_id = %s AND following_id = c.user_id) as is_following
+            FROM tbl_followers f
+            JOIN client c ON f.follower_id = c.user_id
+            WHERE f.following_id = %s
+        """, [viewing_user_id, user_id])
+        followers = dictfetchall(cursor)
+        
+        # Get following list
+        cursor.execute("""
+            SELECT c.user_id, c.name, c.profile_picture,
+                   EXISTS(SELECT 1 FROM tbl_followers 
+                         WHERE follower_id = %s AND following_id = c.user_id) as is_following
+            FROM tbl_followers f
+            JOIN client c ON f.following_id = c.user_id
+            WHERE f.follower_id = %s
+        """, [viewing_user_id, user_id])
+        following = dictfetchall(cursor)
+        
+        # Process profile pictures
+        for user in followers + following:
+            if user['profile_picture']:
+                user['profile_picture_url'] = f"{settings.MEDIA_URL}{user['profile_picture']}"
+        
+        # Get user's posts with likes count and comments count
+        cursor.execute("""
+            SELECT cp.*, 
+                   (SELECT COUNT(*) FROM tbl_post_likes WHERE post_id = cp.id) as likes_count,
+                   (SELECT COUNT(*) FROM tbl_post_comments WHERE post_id = cp.id) as comments_count,
+                   EXISTS(SELECT 1 FROM tbl_post_likes WHERE post_id = cp.id AND user_id = %s) as user_has_liked
+            FROM tbl_community_posts cp
+            WHERE cp.user_id = %s
+            ORDER BY cp.created_at DESC
+        """, [viewing_user_id, user_id])
+        posts = dictfetchall(cursor)
+        
+        # Process posts
+        for post in posts:
+            if post['image']:
+                post['image_url'] = f"{settings.MEDIA_URL}{post['image']}"
+            
+            cursor.execute("""
+                SELECT pc.*, c.name, c.profile_picture
+                FROM tbl_post_comments pc
+                JOIN client c ON pc.user_id = c.user_id
+                WHERE pc.post_id = %s
+                ORDER BY pc.created_at DESC
+            """, [post['id']])
+            post['comments'] = dictfetchall(cursor)
+    
+    context = {
+        'viewed_user': viewed_user,
+        'is_following': is_following,
+        'followers_count': followers_count,
+        'following_count': following_count,
+        'followers': followers,
+        'following': following,
+        'user_posts': posts,
+        'posts_count': len(posts)
+    }
+    
+    return render(request, 'user_profile_view.html', context)
+
+@custom_login_required
+def get_post_details(request, post_id):
+    user_id = request.session.get('user_id')
+    
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT cp.*, c.name as username, c.profile_picture,
+                   (SELECT COUNT(*) FROM tbl_post_likes WHERE post_id = cp.id) as likes_count,
+                   EXISTS(SELECT 1 FROM tbl_post_likes WHERE post_id = cp.id AND user_id = %s) as user_has_liked,
+                   cp.user_id = %s as is_owner
+            FROM tbl_community_posts cp
+            JOIN client c ON cp.user_id = c.user_id
+            WHERE cp.id = %s
+        """, [user_id, user_id, post_id])
+        
+        post = dictfetchall(cursor)[0]
+        
+        # Get likes
+        cursor.execute("""
+            SELECT c.user_id, c.name as username, c.profile_picture
+            FROM tbl_post_likes pl
+            JOIN client c ON pl.user_id = c.user_id
+            WHERE pl.post_id = %s
+            ORDER BY pl.created_at DESC
+        """, [post_id])
+        likes = dictfetchall(cursor)
+        
+        # Get comments
+        cursor.execute("""
+            SELECT pc.*, c.user_id, c.name as username, c.profile_picture
+            FROM tbl_post_comments pc
+            JOIN client c ON pc.user_id = c.user_id
+            WHERE pc.post_id = %s
+            ORDER BY pc.created_at DESC
+        """, [post_id])
+        comments = dictfetchall(cursor)
+        
+        response_data = {
+            'id': post['id'],
+            'image_url': f"{settings.MEDIA_URL}{post['image']}" if post['image'] else None,
+            'user_image_url': f"{settings.MEDIA_URL}{post['profile_picture']}" if post['profile_picture'] else None,
+            'username': post['username'],
+            'caption': post['content'],
+            'timestamp': post['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+            'likes_count': post['likes_count'],
+            'user_has_liked': post['user_has_liked'],
+            'likes': [{
+                'user_id': like['user_id'],
+                'username': like['username'],
+                'profile_picture': f"{settings.MEDIA_URL}{like['profile_picture']}" if like['profile_picture'] else None
+            } for like in likes],
+            'comments': [{
+                'user_id': comment['user_id'],
+                'username': comment['username'],
+                'content': comment['comment'],
+                'timestamp': comment['created_at'].strftime('%Y-%m-%d %H:%M:%S'),
+                'user_image': f"{settings.MEDIA_URL}{comment['profile_picture']}" if comment['profile_picture'] else None
+            } for comment in comments],
+            'is_owner': post['is_owner'],  # Add this field
+        }
+        
+        return JsonResponse(response_data)
+
+@custom_login_required
+def delete_post(request, post_id):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        
+        with connection.cursor() as cursor:
+            # First verify the post belongs to the user
+            cursor.execute("""
+                SELECT user_id, image FROM tbl_community_posts
+                WHERE id = %s
+            """, [post_id])
+            result = cursor.fetchone()
+            
+            if not result:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Post not found'
+                }, status=404)
+                
+            if result[0] != user_id:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'You do not have permission to delete this post'
+                }, status=403)
+            
+            try:
+                # Delete related records first
+                cursor.execute("DELETE FROM tbl_post_likes WHERE post_id = %s", [post_id])
+                cursor.execute("DELETE FROM tbl_post_comments WHERE post_id = %s", [post_id])
+                
+                # Delete the post
+                cursor.execute("DELETE FROM tbl_community_posts WHERE id = %s", [post_id])
+                
+                # If post had an image, delete it from media folder
+                if result[1]:  # result[1] contains the image path
+                    image_path = os.path.join(settings.MEDIA_ROOT, result[1])
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Post deleted successfully'
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': str(e)
+                }, status=500)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Invalid request method'
+    }, status=405)
+
+@custom_login_required
+def toggle_follow(request, user_id):
+    if request.method == 'POST':
+        follower_id = request.session.get('user_id')
+        
+        if follower_id == user_id:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Cannot follow yourself'
+            })
+        
+        with connection.cursor() as cursor:
+            # Check if already following
+            cursor.execute("""
+                SELECT id FROM tbl_followers 
+                WHERE follower_id = %s AND following_id = %s
+            """, [follower_id, user_id])
+            
+            if cursor.fetchone():
+                # Unfollow
+                cursor.execute("""
+                    DELETE FROM tbl_followers 
+                    WHERE follower_id = %s AND following_id = %s
+                """, [follower_id, user_id])
+                action = 'unfollowed'
+            else:
+                # Follow
+                cursor.execute("""
+                    INSERT INTO tbl_followers (follower_id, following_id)
+                    VALUES (%s, %s)
+                """, [follower_id, user_id])
+                action = 'followed'
+            
+        return JsonResponse({
+            'status': 'success',
+            'action': action
+        })
+    
+    return JsonResponse({'status': 'error'})
+
+def get_follow_counts(cursor, user_id):
+    cursor.execute("""
+        SELECT 
+            (SELECT COUNT(*) FROM tbl_followers WHERE following_id = %s) as followers_count,
+            (SELECT COUNT(*) FROM tbl_followers WHERE follower_id = %s) as following_count
+    """, [user_id, user_id])
+    return cursor.fetchone()

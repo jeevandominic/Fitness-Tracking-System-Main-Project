@@ -189,11 +189,11 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_AGE = 3600
+SESSION_COOKIE_AGE = 4800
 
 
 
-MEDIA_URL = '/media/'  # The URL to access uploaded files
+MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 

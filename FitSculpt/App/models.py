@@ -464,3 +464,38 @@ class DeliveryBoy(models.Model):
 
     def __str__(self):
         return self.name
+
+class CommunityPost(models.Model):
+    id = models.AutoField(primary_key=True)
+    user_id = models.IntegerField()
+    content = models.TextField()
+    image = models.ImageField(upload_to='community_posts/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    likes = models.IntegerField(default=0)
+    
+    class Meta:
+        managed = False
+        db_table = 'tbl_community_posts'
+        ordering = ['-created_at']
+
+class PostComment(models.Model):
+    id = models.AutoField(primary_key=True)
+    post_id = models.IntegerField()
+    user_id = models.IntegerField()
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        managed = False
+        db_table = 'tbl_post_comments'
+        ordering = ['-created_at']
+
+class PostLike(models.Model):
+    id = models.AutoField(primary_key=True)
+    post_id = models.IntegerField()
+    user_id = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        managed = False
+        db_table = 'tbl_post_likes'

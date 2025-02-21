@@ -1,0 +1,505 @@
+{% extends 'community_base.html' %}
+
+{% block sub_header %}
+<h2 class="sub-header">Home</h2>
+{% endblock %}
+
+{% block content %}
+{% load static %}
+
+<div class="community-container">
+    <!-- Create Post Form -->
+    <div class="create-post-card">
+        <div class="card-body">
+            <h5 class="section-title">Share with Community</h5>
+            <form method="POST" enctype="multipart/form-data" class="post-form" onsubmit="return validatePostForm()">
+                {% csrf_token %}
+                <div class="form-group">
+                    <textarea class="form-control custom-textarea" 
+                             name="content" 
+                             id="postContent"
+                             rows="3" 
+                             placeholder="What's on your mind?"
+                             required
+                             minlength="1"></textarea>
+                    <div class="invalid-feedback" id="contentError">
+                        Please write something to share.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="image" class="image-label">
+                        <i class="fas fa-image"></i> Add Photo
+                    </label>
+                    <input type="file" 
+                           class="form-control-file" 
+                           id="image" 
+                           name="image" 
+                           accept="image/*" 
+                           style="display: none;"
+                           onchange="previewImage(this)">
+                </div>
+                <div id="imagePreview" class="image-preview" style="display: none;">
+                    <img src="" alt="Preview" id="previewImg">
+                    <button type="button" class="remove-image" onclick="removeImage()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <button type="submit" class="btn custom-btn">Share Post</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Posts Feed -->
+    {% for post in posts %}
+    <div class="post-card" data-post-id="{{ post.id }}">
+        <div class="post-header">
+            <div class="user-info" onclick="location.href='{% url 'view_user_profile' post.user_id %}'">
+                {% if post.profile_picture_url %}
+                    <img src="{{ post.profile_picture_url }}" class="profile-pic" alt="Profile">
+                {% else %}
+                    <img src="{% static 'images/default_profile.png' %}" class="profile-pic" alt="Profile">
+                {% endif %}
+                <div class="user-details">
+                    <h6>{{ post.name }}</h6>
+                    <span class="post-time">{{ post.created_at|timesince }} ago</span>
+                </div>
+            </div>
+        </div>
+        <div class="post-content" onclick="openPostModal({{ post.id }})">
+            <p>{{ post.content }}</p>
+            {% if post.image %}
+                <img src="{{ post.image_url }}" class="post-image" alt="Post image">
+            {% endif %}
+        </div>
+        <div class="post-actions">
+            <button class="action-btn like-btn {% if post.user_has_liked %}liked{% endif %}"
+                    onclick="likePost({{ post.id }})">
+                <i class="fas fa-heart"></i> 
+                <span class="likes-count">{{ post.likes }}</span>
+            </button>
+            <button class="action-btn comment-btn" onclick="toggleComments({{ post.id }})">
+                <i class="fas fa-comment"></i> 
+                <span>{{ post.comments|length }}</span>
+            </button>
+        </div>
+        
+        <div class="comments-section" id="comments-{{ post.id }}" style="display: none;">
+            <div class="comment-input-container">
+                <input type="text" class="comment-input" 
+                       placeholder="Write a comment..." 
+                       onkeypress="handleCommentSubmit(event, {{ post.id }})">
+            </div>
+            {% for comment in post.comments %}
+            <div class="comment">
+                <div class="comment-user">
+                    {% if comment.profile_picture_url %}
+                        <img src="{{ comment.profile_picture_url }}" class="comment-profile-pic" alt="Profile">
+                    {% else %}
+                        <img src="{% static 'images/default_profile.png' %}" class="comment-profile-pic" alt="Profile">
+                    {% endif %}
+                    <div class="comment-details">
+                        <strong>{{ comment.name }}</strong>
+                        <span class="comment-time">{{ comment.created_at|timesince }} ago</span>
+                        <p>{{ comment.comment }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="no-posts">
+        <i class="fas fa-users"></i>
+        <p>No posts yet. Be the first to share something!</p>
+    </div>
+    {% endfor %}
+</div>
+
+<nav class="bottom-nav">
+    <a href="{% url 'community' %}" class="nav-item {% if not profile_view %}active{% endif %}">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'community_search' %}" class="nav-item">
+        <i class="fas fa-users"></i>
+        <span>Find People</span>
+    </a>
+    <a href="{% url 'community_messenger' %}" class="nav-item">
+        <i class="fas fa-paper-plane"></i>
+        <span>Messages</span>
+    </a>
+    <a href="{% url 'community_profile' %}" class="nav-item {% if profile_view %}active{% endif %}">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+    </a>
+</nav>
+
+<a href="{% url 'user_home' %}" class="return-btn">
+    Return to FitSculpt
+</a>
+
+<style>
+.community-container {
+    margin: 70px auto 70px;
+    max-width: 800px;
+    padding: 0 20px;
+}
+
+.section-title {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.create-post-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.custom-textarea {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    resize: none;
+    font-size: 14px;
+}
+
+.image-label {
+    display: inline-block;
+    padding: 8px 15px;
+    background: #f8f9fa;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.3s ease;
+}
+
+.image-label:hover {
+    background: #e9ecef;
+}
+
+.custom-btn {
+    background: #ed563b;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 25px;
+    margin-top: 15px;
+    float: right;
+    transition: all 0.3s ease;
+}
+
+.custom-btn:hover {
+    background: #dc4c31;
+    transform: translateY(-2px);
+}
+
+.post-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+.post-header {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+}
+
+.profile-pic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+}
+
+.user-details h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.post-time {
+    font-size: 12px;
+    color: #666;
+}
+
+.post-content {
+    padding: 20px;
+}
+
+.post-image {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-top: 10px;
+}
+
+.post-actions {
+    padding: 10px 20px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    gap: 15px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 20px;
+}
+
+.like-btn i {
+    color: #666;
+    font-size: 18px;
+    transition: all 0.3s ease;
+}
+
+.like-btn.liked i {
+    color: #ed563b;
+    transform: scale(1.1);
+}
+
+.like-btn:hover i {
+    color: #ed563b;
+    transform: scale(1.1);
+}
+
+.comment-btn i {
+    color: #666;
+    font-size: 18px;
+}
+
+.comment-btn:hover i {
+    color: #333;
+    transform: scale(1.1);
+}
+
+.comments-section {
+    padding: 15px;
+    background: #f8f9fa;
+    border-top: 1px solid #f0f0f0;
+}
+
+.comment-input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    margin-bottom: 15px;
+}
+
+.comment {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.comment-user {
+    display: flex;
+    align-items: flex-start;
+}
+
+.comment-profile-pic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.comment-details strong {
+    font-size: 13px;
+}
+
+.comment-time {
+    font-size: 11px;
+    color: #666;
+    margin-left: 5px;
+}
+
+.no-posts {
+    text-align: center;
+    padding: 50px 20px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.no-posts i {
+    font-size: 48px;
+    color: #ccc;
+    margin-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+    .community-container {
+        padding: 0 10px;
+    }
+    
+    .post-card {
+        border-radius: 10px;
+    }
+}
+
+.community-nav {
+    display: none;
+}
+
+.invalid-feedback {
+    display: none;
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.custom-textarea.is-invalid {
+    border-color: #dc3545;
+}
+
+.image-preview {
+    position: relative;
+    margin-top: 10px;
+    max-width: 200px;
+}
+
+.image-preview img {
+    width: 100%;
+    border-radius: 8px;
+}
+
+.remove-image {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.remove-image:hover {
+    background: #c82333;
+    transform: scale(1.1);
+}
+</style>
+
+<script>
+function likePost(postId) {
+    fetch(`/community/like/${postId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        const postCard = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+        const likeButton = postCard.querySelector('.like-btn');
+        const likesCount = postCard.querySelector('.likes-count');
+        
+        if (data.status === 'liked') {
+            likeButton.classList.add('liked');
+        } else {
+            likeButton.classList.remove('liked');
+        }
+        likesCount.textContent = data.likes;
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function toggleComments(postId) {
+    const commentsSection = document.getElementById(`comments-${postId}`);
+    commentsSection.style.display = commentsSection.style.display === 'none' ? 'block' : 'none';
+}
+
+function handleCommentSubmit(event, postId) {
+    if (event.key === 'Enter') {
+        const input = event.target;
+        const comment = input.value.trim();
+        
+        if (comment) {
+            fetch(`/community/comment/${postId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `comment=${encodeURIComponent(comment)}`,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+            
+            input.value = '';
+        }
+    }
+}
+
+function validatePostForm() {
+    const content = document.getElementById('postContent').value.trim();
+    const contentInput = document.getElementById('postContent');
+    const errorDiv = document.getElementById('contentError');
+    
+    if (!content) {
+        contentInput.classList.add('is-invalid');
+        errorDiv.style.display = 'block';
+        return false;
+    }
+    
+    contentInput.classList.remove('is-invalid');
+    errorDiv.style.display = 'none';
+    return true;
+}
+
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function removeImage() {
+    const input = document.getElementById('image');
+    const preview = document.getElementById('imagePreview');
+    
+    input.value = '';
+    preview.style.display = 'none';
+}
+</script>
+
+{% endblock %} 

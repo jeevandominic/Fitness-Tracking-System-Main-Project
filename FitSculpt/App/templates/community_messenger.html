@@ -1,0 +1,449 @@
+{% extends 'community_base.html' %}
+
+{% block sub_header %}
+<h2 class="sub-header">Messages</h2>
+{% endblock %}
+
+{% block content %}
+{% load static %}
+
+<div class="messenger-container">
+    <div class="chat-list">
+        <div class="chat-list-header">
+            <h3>Messages</h3>
+
+        </div>
+        
+        {% for chat in chats %}
+        <div class="chat-item {% if active_chat and active_chat.user_id == chat.user_id %}active{% endif %}"
+             onclick="location.href='{% url 'community_messenger' %}?user={{ chat.user_id }}'">
+            <div class="chat-user-info">
+                {% if chat.profile_picture %}
+                    <img src="{{ chat.profile_picture_url }}" alt="Profile">
+                {% else %}
+                    <img src="{% static 'images/default_profile.png' %}" alt="Profile">
+                {% endif %}
+                <div class="chat-details">
+                    <h3>{{ chat.name }}</h3>
+                    <p class="last-message">{{ chat.last_message|truncatechars:30 }}</p>
+                </div>
+            </div>
+            <span class="chat-time">{{ chat.last_message_time|timesince }} ago</span>
+        </div>
+        {% empty %}
+        <div class="no-chats">
+            <i class="fas fa-comments"></i>
+            <p>No conversations yet</p>
+            <a href="{% url 'community_search' %}" class="start-chat-btn">Find People to Chat</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if active_chat %}
+    <div class="chat-window">
+        <div class="chat-header">
+            <div class="chat-user">
+                {% if active_chat.profile_picture %}
+                    <img src="{{ active_chat.profile_picture_url }}" alt="Profile">
+                {% else %}
+                    <img src="{% static 'images/default_profile.png' %}" alt="Profile">
+                {% endif %}
+                <div class="chat-user-info">
+                    <h3>{{ active_chat.name }}</h3>
+                    <span class="online-status">Online</span>
+                </div>
+            </div>
+            <a href="{% url 'view_user_profile' active_chat.user_id %}" class="view-profile-btn">
+                <i class="fas fa-user"></i>
+            </a>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            {% for message in messages %}
+            <div class="message {% if message.sender_id == request.session.user_id %}sent{% else %}received{% endif %}">
+                <div class="message-content">
+                    <p>{{ message.content }}</p>
+                    <span class="message-time">{{ message.created_at|timesince }} ago</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="message-input">
+            <div class="input-wrapper">
+                <input type="text" 
+                       id="messageInput" 
+                       placeholder="Type a message..."
+                       onkeypress="handleMessageSubmit(event)">
+                <button onclick="sendMessage()" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="no-chat-selected">
+        <i class="fas fa-comments"></i>
+        <p>Select a conversation or start a new one</p>
+        <a href="{% url 'community_search' %}" class="start-chat-btn">Find People</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function handleMessageSubmit(event) {
+    if (event.key === 'Enter') {
+        sendMessage();
+    }
+}
+
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    const recipientId = '{{ active_chat.user_id }}';
+    
+    if (message && recipientId) {
+        fetch('{% url "send_message" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                recipient_id: recipientId,
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Add message to chat window
+                const messagesContainer = document.getElementById('messagesContainer');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message sent';
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <p>${message}</p>
+                        <span class="message-time">Just now</span>
+                    </div>
+                `;
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                input.value = '';
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+}
+
+function startChat(userId, userName) {
+    window.location.href = `{% url 'community_messenger' %}?user=${userId}`;
+}
+
+// Auto-scroll to bottom of messages
+const messagesContainer = document.getElementById('messagesContainer');
+if (messagesContainer) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+</script>
+
+<style>
+.messenger-container {
+    margin: 80px auto 100px;
+    max-width: 1200px;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    height: calc(100vh - 180px);
+}
+
+.chat-list {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-list-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-list-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.new-chat-btn {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #ed563b;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.new-chat-btn:hover {
+    transform: scale(1.1);
+    background: #dc4c31;
+}
+
+.chat-item {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #eee;
+}
+
+.chat-item:hover {
+    background: #f8f9fa;
+}
+
+.chat-item.active {
+    background: #ed563b15;
+    border-left: 4px solid #ed563b;
+}
+
+.chat-user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.chat-user-info img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.chat-details h3 {
+    margin: 0;
+    font-size: 15px;
+    color: #333;
+}
+
+.chat-details p {
+    margin: 5px 0 0;
+    font-size: 13px;
+    color: #666;
+}
+
+.chat-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.chat-window {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-user {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.chat-user img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.chat-user-info h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.online-status {
+    font-size: 12px;
+    color: #4CAF50;
+}
+
+.view-profile-btn {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #f0f2f5;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.view-profile-btn:hover {
+    background: #e4e6e9;
+    color: #333;
+}
+
+.messages-container {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: #f8f9fa;
+}
+
+.message {
+    max-width: 70%;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.message-content {
+    padding: 12px 16px;
+    border-radius: 15px;
+    position: relative;
+}
+
+.message.sent {
+    align-self: flex-end;
+}
+
+.message.sent .message-content {
+    background: #ed563b;
+    color: white;
+    border-bottom-right-radius: 5px;
+}
+
+.message.received {
+    align-self: flex-start;
+}
+
+.message.received .message-content {
+    background: white;
+    color: #333;
+    border-bottom-left-radius: 5px;
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 5px;
+    display: block;
+}
+
+.message-input {
+    padding: 15px 20px;
+    background: white;
+    border-top: 1px solid #eee;
+}
+
+.input-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.message-input input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #eee;
+    border-radius: 25px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.message-input input:focus {
+    border-color: #ed563b;
+    outline: none;
+}
+
+.send-btn {
+    background: #ed563b;
+    color: white;
+    border: none;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.send-btn:hover {
+    background: #dc4c31;
+    transform: scale(1.05);
+}
+
+.no-chat-selected {
+    background: white;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+}
+
+.no-chat-selected i {
+    font-size: 48px;
+    color: #ccc;
+    margin-bottom: 20px;
+}
+
+.start-chat-btn {
+    margin-top: 20px;
+    background: #ed563b;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.start-chat-btn:hover {
+    background: #dc4c31;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .messenger-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .chat-list {
+        display: none;
+    }
+    
+    .chat-list.active {
+        display: block;
+    }
+}
+</style>
+
+{% endblock %} 
