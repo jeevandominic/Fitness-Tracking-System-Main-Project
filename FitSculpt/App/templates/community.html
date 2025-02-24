@@ -7,11 +7,24 @@
 {% block content %}
 {% load static %}
 
+<!-- Add these at the very top of your content block -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
 <div class="community-container">
     <!-- Create Post Form -->
     <div class="create-post-card">
         <div class="card-body">
             <h5 class="section-title">Share with Community</h5>
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             <form method="POST" enctype="multipart/form-data" class="post-form" onsubmit="return validatePostForm()">
                 {% csrf_token %}
                 <div class="form-group">
@@ -36,15 +49,24 @@
                            name="image" 
                            accept="image/*" 
                            style="display: none;"
-                           onchange="previewImage(this)">
+                           onchange="handleImageSelect(this)">
                 </div>
                 <div id="imagePreview" class="image-preview" style="display: none;">
-                    <img src="" alt="Preview" id="previewImg">
-                    <button type="button" class="remove-image" onclick="removeImage()">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <div class="preview-container">
+                        <img src="" alt="Preview" id="previewImg">
+                        <div class="preview-overlay">
+                            <div class="preview-actions">
+                                <button type="button" class="edit-image-btn" id="editImageBtn">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button type="button" class="remove-image" id="removeImageBtn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <button type="submit" class="btn custom-btn">Share Post</button>
+                <button type="submit" class="btn custom-btn" id="postbutton">Share Post</button>
             </form>
         </div>
     </div>
@@ -137,6 +159,37 @@
 <a href="{% url 'user_home' %}" class="return-btn">
     Return to FitSculpt
 </a>
+
+<!-- Update your image editor modal -->
+<div id="imageEditorModal" class="modal">
+    <div class="modal-content image-editor-content">
+        <span class="close-modal">&times;</span>
+        <div class="editor-container">
+            <div class="image-container">
+                <img id="imageToEdit" src="" style="max-width: 100%; max-height: 70vh;">
+            </div>
+            <div class="editor-controls">
+                <div class="filter-controls">
+                    <h4>Filters</h4>
+                    <button type="button" onclick="applyFilter('normal')" class="filter-btn active">Normal</button>
+                    <button type="button" onclick="applyFilter('grayscale')" class="filter-btn">B&W</button>
+                    <button type="button" onclick="applyFilter('sepia')" class="filter-btn">Sepia</button>
+                    <button type="button" onclick="applyFilter('brightness')" class="filter-btn">Bright</button>
+                    <button type="button" onclick="applyFilter('contrast')" class="filter-btn">Contrast</button>
+                    <button type="button" onclick="applyFilter('warmth')" class="filter-btn">Warmth</button>
+                </div>
+                <div class="crop-controls">
+                    <h4>Crop & Rotate</h4>
+                    <button type="button" onclick="enableCrop()" class="editor-btn">Enable Crop</button>
+                    <button type="button" onclick="rotateImage(-90)" class="editor-btn">Rotate Left</button>
+                    <button type="button" onclick="rotateImage(90)" class="editor-btn">Rotate Right</button>
+                    <button type="button" onclick="resetCrop()" class="editor-btn">Reset</button>
+                </div>
+                <button type="button" onclick="saveEditedImage()" class="save-btn">Save & Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
 .community-container {
@@ -372,20 +425,66 @@
 }
 
 .image-preview {
-    position: relative;
     margin-top: 10px;
-    max-width: 200px;
+    max-width: 300px;
 }
 
-.image-preview img {
+.preview-container {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.preview-container img {
     width: 100%;
+    display: block;
     border-radius: 8px;
 }
 
-.remove-image {
+.preview-overlay {
     position: absolute;
-    top: -10px;
-    right: -10px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 10px;
+}
+
+.preview-container:hover .preview-overlay {
+    opacity: 1;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.edit-image-btn {
+    background: #ed563b;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+}
+
+.edit-image-btn:hover {
+    background: #dc4c31;
+    transform: scale(1.05);
+}
+
+.remove-image {
     background: #dc3545;
     color: white;
     border: none;
@@ -401,11 +500,150 @@
 
 .remove-image:hover {
     background: #c82333;
-    transform: scale(1.1);
+    transform: scale(1.05);
+}
+
+.alert {
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.alert-error {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.alert-success {
+    background-color: #dcfce7;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.9);
+    overflow-y: auto;
+}
+
+.image-editor-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 1200px;
+    position: relative;
+}
+
+.editor-container {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    min-height: 400px;
+}
+
+.image-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.image-container img {
+    max-width: 100%;
+    display: block;
+}
+
+.editor-controls {
+    width: 250px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.filter-controls, .crop-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-btn, .editor-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 20px;
+    background: #eee;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-btn:hover, .editor-btn:hover {
+    background: #e0e0e0;
+}
+
+.filter-btn.active {
+    background: #ed563b;
+    color: white;
+}
+
+.save-btn {
+    margin-top: auto;
+    padding: 12px 20px;
+    background: #ed563b;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+    background: #dc4c31;
+    transform: translateY(-2px);
+}
+
+/* Ensure Cropper.js elements are visible */
+.cropper-container {
+    z-index: 1050 !important;
+}
+
+.cropper-view-box,
+.cropper-face {
+    border-radius: 0;
+}
+
+.close-modal {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1060;
+}
+
+.close-modal:hover {
+    color: #ed563b;
 }
 </style>
 
 <script>
+// Add this at the top with other global variables
+let currentFilter = 'normal';
+
 function likePost(postId) {
     fetch(`/community/like/${postId}/`, {
         method: 'POST',
@@ -477,17 +715,14 @@ function validatePostForm() {
     return true;
 }
 
-function previewImage(input) {
-    const preview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
-    
+function handleImageSelect(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         
         reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            preview.style.display = 'block';
-        }
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('imagePreview').style.display = 'block';
+        };
         
         reader.readAsDataURL(input.files[0]);
     }
@@ -500,6 +735,236 @@ function removeImage() {
     input.value = '';
     preview.style.display = 'none';
 }
+
+// Add this in your script section, before editExistingImage function
+let cropper = null;
+
+function initializeCropper() {
+    console.log('Initializing cropper');
+    const image = document.getElementById('imageToEdit');
+    
+    if (cropper) {
+        cropper.destroy();
+    }
+
+    try {
+        cropper = new Cropper(image, {
+            aspectRatio: NaN,
+            viewMode: 2,
+            dragMode: 'move',
+            autoCropArea: 1,
+            restore: false,
+            modal: true,
+            guides: true,
+            highlight: true,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: true,
+            ready: function() {
+                console.log('Cropper is ready');
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing cropper:', error);
+    }
+}
+
+// Update these functions to use the global cropper instance
+function rotateImage(degree) {
+    if (cropper) {
+        cropper.rotate(degree);
+    }
+}
+
+function enableCrop() {
+    if (cropper) {
+        cropper.setDragMode('crop');
+    }
+}
+
+function resetCrop() {
+    if (cropper) {
+        cropper.reset();
+        currentFilter = 'normal';
+        applyFilter('normal');
+    }
+}
+
+function applyFilter(filter) {
+    if (!cropper) return;
+    
+    console.log('Applying filter:', filter);
+    
+    try {
+        // Get the image element directly
+        const image = document.getElementById('imageToEdit');
+        if (!image) {
+            console.error('Image element not found');
+            return;
+        }
+        
+        currentFilter = filter;
+        
+        // Remove all previous filters
+        image.style.filter = '';
+        
+        // Apply selected filter
+        switch(filter) {
+            case 'grayscale':
+                image.style.filter = 'grayscale(100%)';
+                break;
+            case 'sepia':
+                image.style.filter = 'sepia(100%)';
+                break;
+            case 'brightness':
+                image.style.filter = 'brightness(130%)';
+                break;
+            case 'contrast':
+                image.style.filter = 'contrast(150%)';
+                break;
+            case 'warmth':
+                image.style.filter = 'sepia(50%) saturate(150%)';
+                break;
+            default:
+                image.style.filter = 'none';
+        }
+        
+        // Update active filter button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('onclick').includes(filter)) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Also apply filter to cropper canvas if available
+        const canvas = cropper.getCanvasData();
+        if (canvas && canvas.el) {
+            canvas.el.style.filter = image.style.filter;
+        }
+
+    } catch (error) {
+        console.error('Error applying filter:', error);
+    }
+}
+
+function saveEditedImage() {
+    if (!cropper) return;
+    
+    const canvas = cropper.getCroppedCanvas({
+        maxWidth: 2048,
+        maxHeight: 2048,
+        fillColor: '#fff',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+    });
+    
+    // Apply current filter to canvas
+    if (currentFilter && currentFilter !== 'normal') {
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        
+        // Get the current filter from the image element
+        const currentFilterStyle = document.getElementById('imageToEdit').style.filter;
+        
+        // Apply the filter
+        tempCtx.filter = currentFilterStyle;
+        tempCtx.drawImage(canvas, 0, 0);
+        
+        // Copy back to original canvas
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(tempCanvas, 0, 0);
+    }
+    
+    canvas.toBlob((blob) => {
+        const fileName = 'edited_' + Date.now() + '.jpg';
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+        
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        document.getElementById('image').files = dataTransfer.files;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('imagePreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+        
+        closeImageEditor();
+    }, 'image/jpeg', 0.92);
+}
+
+function closeImageEditor() {
+    const modal = document.getElementById('imageEditorModal');
+    modal.style.display = 'none';
+    
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+}
+
+// First define all functions
+function editExistingImage() {
+    console.log('Edit button clicked');
+    const previewImg = document.getElementById('previewImg');
+    const imageToEdit = document.getElementById('imageToEdit');
+    const modal = document.getElementById('imageEditorModal');
+
+    if (!previewImg.src) {
+        console.log('No image to edit');
+        return;
+    }
+
+    imageToEdit.src = previewImg.src;
+    modal.style.display = 'block';
+
+    // Initialize cropper after image loads
+    imageToEdit.onload = function() {
+        console.log('Image loaded, initializing cropper');
+        initializeCropper();
+    };
+}
+
+// Initialize everything when the DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for edit and remove buttons
+    const editBtn = document.getElementById('editImageBtn');
+    const removeBtn = document.getElementById('removeImageBtn');
+    
+    if (editBtn) {
+        editBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            editExistingImage();
+        });
+    }
+    
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            removeImage();
+        });
+    }
+
+    // Initialize other event listeners
+    const closeBtn = document.querySelector('.close-modal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeImageEditor);
+    }
+
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('imageEditorModal');
+        if (event.target === modal) {
+            closeImageEditor();
+        }
+    });
+});
 </script>
 
 {% endblock %} 

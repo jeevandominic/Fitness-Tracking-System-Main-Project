@@ -35,6 +35,8 @@ from datetime import datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt  # Only for testing
+from .utils.image_validator import ImageValidator
+import time
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -4388,33 +4390,47 @@ def community_view(request):
         image = request.FILES.get('image')
         
         try:
-            # Handle image upload
-            image_path = None
             if image:
-                fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'community_posts'))
-                filename = fs.save(image.name, image)
-                image_path = f'community_posts/{filename}'
+                # Validate image content
+                image_validator = ImageValidator()
+                is_valid, label, confidence = image_validator.is_fitness_related(image.read())
+                
+                if not is_valid:
+                    messages.error(request, 
+                        f"Please upload only fitness, workout, or nutrition related images. "
+                        f"Detected: {label} (Confidence: {confidence:.2f}). "
+                        "Try an image showing exercise, healthy food, or fitness activities.")
+                    return redirect('community')
+                
+                # Reset file pointer after reading
+                image.seek(0)
+                
+                # Generate unique filename
+                ext = image.name.split('.')[-1]
+                filename = f"community_posts/{user_id}_{int(time.time())}.{ext}"
+                
+                # Save image
+                fs = FileSystemStorage()
+                filename = fs.save(filename, image)
+            else:
+                filename = None
             
             with connection.cursor() as cursor:
-                if image_path:
-                    cursor.execute("""
-                        INSERT INTO tbl_community_posts (user_id, content, image, created_at, likes)
-                        VALUES (%s, %s, %s, NOW(), 0)
-                    """, [user_id, content, image_path])
-                else:
-                    cursor.execute("""
-                        INSERT INTO tbl_community_posts (user_id, content, created_at, likes)
-                        VALUES (%s, %s, NOW(), 0)
-                    """, [user_id, content])
-                
+                cursor.execute("""
+                    INSERT INTO tbl_community_posts (user_id, content, image, created_at)
+                    VALUES (%s, %s, %s, NOW())
+                """, [user_id, content, filename])
+            
             messages.success(request, 'Post created successfully!')
-            return redirect('community')
+            
         except Exception as e:
-            print(f"Error creating post: {str(e)}")
             messages.error(request, f'Error creating post: {str(e)}')
+        
+        return redirect('community')
     
-    # Get all posts with user details
+    # Handle GET request
     with connection.cursor() as cursor:
+        # Get all posts with user details
         cursor.execute("""
             SELECT 
                 cp.id,
