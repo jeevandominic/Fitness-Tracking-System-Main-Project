@@ -499,3 +499,25 @@ class PostLike(models.Model):
     class Meta:
         managed = False
         db_table = 'tbl_post_likes'
+
+class WeeklyWorkoutCompletion(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    week_start_date = models.DateField()
+    workout_completed = models.BooleanField(default=False)
+    workout_id = models.ForeignKey(Workout, on_delete=models.CASCADE)
+    completion_date = models.DateField(auto_now_add=True)  # New field to track completion date
+
+    class Meta:
+        managed = False  # This model is not managed by Django
+        unique_together = ('client', 'week_start_date', 'workout_id')
+
+class WeeklyNutritionCompletion(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    week_start_date = models.DateField()
+    nutrition_completed = models.BooleanField(default=False)
+    nutrition_id = models.ForeignKey(Nutrition, on_delete=models.CASCADE)
+    completion_date = models.DateField(auto_now_add=True)  # New field to track completion date
+
+    class Meta:
+        managed = False  # This model is not managed by Django
+        unique_together = ('client', 'week_start_date', 'nutrition_id')

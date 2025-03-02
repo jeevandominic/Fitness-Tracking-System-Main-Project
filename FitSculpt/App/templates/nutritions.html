@@ -116,6 +116,66 @@
     opacity: 0.9; /* Slightly dim on hover */
 }
 
+/* Add these new styles */
+.nutrition-days {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.day-button {
+    background-color: #b35138;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.day-button.active {
+    background-color: #8b4130;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.day-button.disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.nutrition-status {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.nutrition-status button {
+    background-color: #b35138;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+}
+
+.nutrition-status button:hover:not([disabled]) {
+    background-color: #8b4130;
+    transform: translateY(-2px);
+}
+
+.nutrition-status button[disabled] {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
 </style>
 <section class="section" id="nutrition">
     <div class="container">
@@ -134,46 +194,69 @@
             </div>
         {% endif %}
         
-        <h2>Personalized Nutrition Plan</h2>
-        {% if plan.plan_name == 'Premium Plan' or plan.plan_name == 'Child Plan' %}
-            <a href="{% url 'personal_nutrition' %}" class="day-button">Nutrition Guidance</a>
-        {% endif %}
-        
+        <h2>Weekly Nutrition Plan</h2>
+
+        <!-- Day selection buttons -->
+        <div class="nutrition-days">
+            <a href="?day=1" class="day-button {% if current_day == 1 %}active{% endif %}">Day 1</a>
+            {% for day in "234567" %}
+                {% with day_num=day|add:"0" %}
+                    {% if previous_day_completed and hours_passed >= 24 or day_num <= last_completed_day %}
+                        <a href="?day={{ day }}" class="day-button {% if current_day == day_num %}active{% endif %}">Day {{ day }}</a>
+                    {% else %}
+                        <span class="day-button disabled" title="Complete previous day first">Day {{ day }}</span>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+        </div>
+
         {% if bmi %}
-        <p><strong>BMI:</strong> {{ bmi|floatformat:2 }}</p>
-        <p><strong>Nutrition Category:</strong> {{ nutrition_category }}</p>
+            <p><strong>BMI:</strong> {{ bmi|floatformat:2 }}</p>
+            <p><strong>Nutrition Category:</strong> {{ nutrition_category }}</p>
         {% endif %}
 
         {% if food_details %}
-    <table>
-        <thead>
-            <tr>
-                <th>Description</th>
-                <th>Food Name</th>
-                <th>Calories</th>
-                <th>Proteins</th>
-                <th>Carbs</th>
-                <th>Fats</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for detail in food_details %}
-            <tr>
-                <td>{{ detail.nutrition_description }}</td>  
-                <td>{{ detail.food_name }}</td>
-                <td>{{ detail.calories }}</td>
-                <td>{{ detail.proteins }}</td>
-                <td>{{ detail.carbs }}</td>
-                <td>{{ detail.fats }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>No nutrition data available for this category. Kindly Update Your Profile Here</p>
-    <a href="{% url 'user_profile' %}" class="update">Update Profile</a> 
-{% endif %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Meal Time</th>
+                        <th>Food Name</th>
+                        <th>Calories</th>
+                        <th>Proteins</th>
+                        <th>Carbs</th>
+                        <th>Fats</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nutrition in food_details %}
+                        <tr>
+                            <td>{{ nutrition.nutrition_description }}</td>
+                            <td>{{ nutrition.food_name }}</td>
+                            <td>{{ nutrition.calories }}</td>
+                            <td>{{ nutrition.proteins }}</td>
+                            <td>{{ nutrition.carbs }}</td>
+                            <td>{{ nutrition.fats }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
 
+            <div class="nutrition-status">
+                <form method="POST" action="{% url 'mark_nutrition_completed' current_day %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="week_start_date" value="{{ week_start_date|date:'Y-m-d' }}">
+                    {% if completion_status %}
+                        <button type="submit" disabled>Completed for Day {{ current_day }} (7 days cooldown)</button>
+                    {% else %}
+                        <button type="submit" name="status" value="completed">Mark as Followed</button>
+                        <button type="submit" name="status" value="not_completed" style="background-color: #dc3545;">Mark as Not Followed</button>
+                    {% endif %}
+                </form>
+            </div>
+        {% else %}
+            <p>No nutrition data available for this category.</p>
+            <a href="{% url 'user_profile' %}" class="update">Update Profile</a>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

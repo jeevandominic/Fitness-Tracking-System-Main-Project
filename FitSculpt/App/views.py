@@ -1504,10 +1504,15 @@ def workouts_view(request, day=None):
                 workout = Workout.objects.get(workout_id=service.workout_id)
                 workouts.append(workout)
 
+    # Get current date and calculate week start date
+    current_date = datetime.now().date()
+    week_start_date = current_date - timedelta(days=current_date.weekday())
+    
     context = {
-        'plan': plan,
         'workouts': workouts,
-        'error': 'No workouts found for this day.' if not workouts and day else ''
+        'plan': plan,
+        'week_start_date': week_start_date,
+        'now': current_date,
     }
     return render(request, 'workouts.html', context)
 
@@ -1520,31 +1525,131 @@ from django.db import connection
 @custom_login_required
 def workouts_by_day_view(request, day):
     user_id = request.session.get('user_id')
+    current_date = datetime.now().date()
+    current_datetime = datetime.now()
+    week_start_date = current_date - timedelta(days=current_date.weekday())
 
-    # Fetch plan_id from tbl_payment
     with connection.cursor() as cursor:
-        cursor.execute("SELECT plan_id FROM tbl_payment WHERE user_id = %s AND active =1 ", [user_id])
+        cursor.execute("""
+            SELECT plan_id 
+            FROM tbl_payment 
+            WHERE user_id = %s AND active = 1
+        """, [user_id])
         result = cursor.fetchone()
         plan_id = result[0] if result else None
 
-    if plan_id:
+        if not plan_id:
+            return render(request, 'workouts.html', {
+                'error': 'No active plan found. Please Select a valid Plan'
+            })
+
         plan = Plan.objects.get(plan_id=plan_id)
 
-        services = Service.objects.filter(service_no=plan.service_no, day=day)
+        if day > 1:
+            # Check if ALL workouts from previous day are completed
+            cursor.execute("""
+                WITH PreviousDayWorkouts AS (
+                    SELECT w.workout_id
+                    FROM tbl_services s
+                    JOIN tbl_workouts w ON s.workout_id = w.workout_id
+                    WHERE s.service_no = %s AND s.day = %s
+                ),
+                CompletedWorkouts AS (
+                    SELECT DISTINCT wc.workout_id
+                    FROM WeeklyWorkoutCompletion wc
+                    WHERE wc.client_id = %s 
+                    AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                )
+                SELECT 
+                    COUNT(DISTINCT pdw.workout_id) as total_workouts,
+                    COUNT(DISTINCT cw.workout_id) as completed_workouts
+                FROM PreviousDayWorkouts pdw
+                LEFT JOIN CompletedWorkouts cw ON pdw.workout_id = cw.workout_id
+            """, [plan.service_no, day-1, user_id])
+            
+            total_workouts, completed_workouts = cursor.fetchone()
+
+            if completed_workouts < total_workouts:
+                messages.error(request, f"Please complete all Day {day-1} workouts first")
+                return redirect('workouts_by_day', day=day-1)
+
+            # If all workouts completed, check the 24-hour gap
+            if completed_workouts == total_workouts:
+                cursor.execute("""
+                    SELECT MAX(wc.completion_date)
+                    FROM WeeklyWorkoutCompletion wc
+                    JOIN tbl_services s ON wc.workout_id = s.workout_id
+                    WHERE wc.client_id = %s 
+                    AND s.day = %s 
+                    AND s.service_no = %s
+                    AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                """, [user_id, day-1, plan.service_no])
+                
+                last_completion = cursor.fetchone()[0]
+                if last_completion:
+                    hours_passed = (current_datetime - last_completion).total_seconds() / 3600
+                    if hours_passed < 24:
+                        wait_hours = 24 - hours_passed
+                        messages.info(request, f"Please wait {int(wait_hours)} more hours before starting next day's workout")
+                        return redirect('workouts_by_day', day=day-1)
+
+        # Check if ALL workouts for current day were completed in last 7 days
+        cursor.execute("""
+            SELECT 
+                (SELECT COUNT(*) FROM tbl_services WHERE service_no = %s AND day = %s) as total_workouts,
+                COUNT(DISTINCT wc.workout_id) as completed_workouts,
+                MAX(wc.completion_date) as last_completion_date
+            FROM tbl_services s
+            LEFT JOIN WeeklyWorkoutCompletion wc ON s.workout_id = wc.workout_id 
+                AND wc.client_id = %s 
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            WHERE s.service_no = %s AND s.day = %s
+        """, [plan.service_no, day, user_id, plan.service_no, day])
+        
+        total_workouts, completed_workouts, last_completion = cursor.fetchone()
+        
+        # Only show the 7-day message if ALL workouts were completed
+        if completed_workouts == total_workouts and last_completion:
+            next_available = datetime.strptime(str(last_completion), '%Y-%m-%d %H:%M:%S') + timedelta(days=7)
+            if current_datetime < next_available:
+                messages.info(request, f"This day's workout will be available on {next_available.strftime('%A, %B %d')}")
+                return redirect('workouts')
+
+        # Get workouts with their completion status
+        cursor.execute("""
+            SELECT 
+                w.*, 
+                DATE_FORMAT(wc.completion_date, '%%Y-%%m-%%d %%H:%%i:%%s') as completion_date
+            FROM tbl_services s
+            JOIN tbl_workouts w ON s.workout_id = w.workout_id
+            LEFT JOIN WeeklyWorkoutCompletion wc ON w.workout_id = wc.workout_id 
+                AND wc.client_id = %s 
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            WHERE s.service_no = %s AND s.day = %s
+        """, [user_id, plan.service_no, day])
 
         workouts = []
-        for service in services:
-            workout = Workout.objects.get(workout_id=service.workout_id)
+        for row in cursor.fetchall():
+            workout = {
+                'workout_id': row[0],
+                'workout_name': row[1],
+                'description': row[2],
+                'body_part': row[3],
+                'duration': row[4],
+                'workout_image': row[5],
+                'reference_video': row[6],
+                'completion_date': datetime.strptime(row[7], '%Y-%m-%d %H:%M:%S') if row[7] else None
+            }
             workouts.append(workout)
 
         context = {
             'plan': plan,
             'workouts': workouts,
+            'week_start_date': week_start_date,
+            'now': current_datetime,
+            'current_day': day
         }
         return render(request, 'workouts.html', context)
-    else:
-        return render(request, 'workouts.html', {'error': 'No active plan found. Please Select a valid Plan'})
-    
 
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
@@ -1971,21 +2076,41 @@ from django.db.models import Q
 @custom_login_required
 def nutrition_view(request):
     user_id = request.session.get('user_id')
+    current_date = datetime.now().date()
+    current_datetime = datetime.now()
+    week_start_date = current_date - timedelta(days=current_date.weekday())
+    
+    try:
+        current_day = int(request.GET.get('day', 1))
+        current_day = max(1, min(current_day, 7))
+    except (ValueError, TypeError):
+        current_day = 1
 
-    if user_id:
-        client = Client.objects.get(user_id=user_id)
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT plan_id FROM tbl_payment WHERE user_id = %s AND active=1", [user_id])
-            result = cursor.fetchone()
-            plan_id = result[0] if result else None
+    with connection.cursor() as cursor:
+        # Get user's plan and nutrition details
+        cursor.execute("""
+            SELECT p.plan_id, p.plan_name, p.service_no 
+            FROM tbl_payment t
+            JOIN tbl_plans p ON t.plan_id = p.plan_id
+            WHERE t.user_id = %s AND t.active = 1
+        """, [user_id])
+        plan_result = cursor.fetchone()
+        
+        if not plan_result:
+            return render(request, 'nutritions.html', {'error': 'No active plan found'})
+            
+        plan_id, plan_name, service_no = plan_result
 
-        plan = None
-        if plan_id:
-            plan = Plan.objects.get(plan_id=plan_id)
-
-
-        height_in_meters = client.height / 100 if client.height else None
-        bmi = client.weight / (height_in_meters ** 2) if client.weight and client.height else None
+        # Get client's BMI category
+        cursor.execute("""
+            SELECT height, weight, food_type 
+            FROM client 
+            WHERE user_id = %s
+        """, [user_id])
+        height, weight, food_type = cursor.fetchone()
+        
+        height_in_meters = height / 100 if height else None
+        bmi = weight / (height_in_meters ** 2) if weight and height else None
 
         if bmi:
             if bmi < 18.5:
@@ -1999,43 +2124,180 @@ def nutrition_view(request):
         else:
             return render(request, 'nutritions.html', {'error': 'Please update your profile to get nutrition suggestions.'})
 
-        food_type = 'Vegetarian' if client.food_type == 'veg' else 'Non Vegetarian'
+        # Check if previous day's nutrition was completed and 24 hours have passed
+        if current_day > 1:
+            cursor.execute("""
+                SELECT completion_date, nutrition_completed
+                FROM WeeklyNutritionCompletion
+                WHERE client_id = %s 
+                AND DATE(completion_date) > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND nutrition_id IN (
+                    SELECT nutrition_id 
+                    FROM tbl_nutritions 
+                    WHERE nutrition_no = %s
+                )
+                ORDER BY completion_date DESC
+                LIMIT 1
+            """, [user_id, current_day - 1])
+            
+            prev_day_completion = cursor.fetchone()
+            
+            if not prev_day_completion:
+                messages.error(request, f"Please complete Day {current_day - 1}'s nutrition plan first")
+                return redirect(f'/nutrition/?day={current_day - 1}')
+            
+            # Check if 24 hours have passed since completing previous day
+            last_completion_time = prev_day_completion[0]
+            hours_passed = (current_datetime - last_completion_time).total_seconds() / 3600
+            
+            if hours_passed < 24:
+                wait_hours = 24 - hours_passed
+                messages.info(request, f"Please wait {int(wait_hours)} more hours before marking Day {current_day}'s nutrition")
+                return redirect(f'/nutrition/?day={current_day - 1}')
 
+        # Check completion status for the current day
+        cursor.execute("""
+            SELECT completion_date, nutrition_completed
+            FROM WeeklyNutritionCompletion
+            WHERE client_id = %s 
+            AND DATE(completion_date) > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND nutrition_id IN (
+                SELECT nutrition_id 
+                FROM tbl_nutritions 
+                WHERE nutrition_no = %s
+            )
+            ORDER BY completion_date DESC
+            LIMIT 1
+        """, [user_id, current_day])
+        
+        completion_status = cursor.fetchone()
+
+        # Get nutrition details for current day based on BMI category
+        nutrition_query = """
+            SELECT 
+                n.nutrition_id,
+                n.description as nutrition_description,
+                f.food_name,
+                f.calories,
+                f.proteins,
+                f.carbs,
+                f.fats
+            FROM tbl_nutritions n
+            JOIN tbl_food_database f ON n.food_id = f.food_id
+            WHERE n.nutrition_no = %s
+            ORDER BY n.nutrition_id
+        """
+
+        # Select nutrition based on BMI category and food type
         if nutrition_category == 'Underweight':
-            nutrition = Nutrition.objects.filter(Q(nutrition_no__in=[1, 4]) if food_type == 'Vegetarian' else Q(nutrition_no__in=[5, 8]))
+            nutrition_no = 1 if food_type == 'veg' else 5
         elif nutrition_category == 'Normal':
-            nutrition = Nutrition.objects.filter(Q(nutrition_no=4) if food_type == 'Vegetarian' else Q(nutrition_no=8))
+            nutrition_no = 4 if food_type == 'veg' else 8
         elif nutrition_category == 'Overweight':
-            nutrition = Nutrition.objects.filter(Q(nutrition_no__in=[3, 4]) if food_type == 'Vegetarian' else Q(nutrition_no__in=[7, 8]))
-        else:
-            nutrition = Nutrition.objects.filter(Q(nutrition_no=3) if food_type == 'Vegetarian' else Q(nutrition_no=7))
+            nutrition_no = 3 if food_type == 'veg' else 7
+        else:  # Obesity
+            nutrition_no = 3 if food_type == 'veg' else 7
 
-        # Now, fetch all food items associated with the nutrition_no
-        food_details = []
-        for item in nutrition:
-            foods = FoodDatabase.objects.filter(food_id=item.food_id).all()  # Assuming food_id relates to the Nutrition
-            for food in foods:
-                food_details.append({
-                    'nutrition_id': item.nutrition_id,
-                    'nutrition_description': item.description,
-                    'food_name': food.food_name,
-                    'calories': food.calories,
-                    'proteins': food.proteins,
-                    'carbs': food.carbs,
-                    'fats': food.fats,
-                })
+        cursor.execute(nutrition_query, [nutrition_no])
+        food_details = dictfetchall(cursor)
 
-        return render(request, 'nutritions.html', {
-            'nutrition': nutrition,
+        # Get the last completed day and its completion time
+        cursor.execute("""
+            WITH LastCompletions AS (
+                SELECT 
+                    n.nutrition_no as day,
+                    MAX(wc.completion_date) as completion_date
+                FROM WeeklyNutritionCompletion wc
+                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                WHERE wc.client_id = %s 
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND wc.nutrition_completed = TRUE
+                GROUP BY n.nutrition_no
+            )
+            SELECT 
+                MAX(day) as last_completed_day,
+                MAX(completion_date) as last_completion_time
+            FROM LastCompletions
+        """, [user_id])
+        
+        result = cursor.fetchone()
+        last_completed_day = result[0] or 0
+        last_completion_time = result[1]
+
+        # Calculate hours passed since last completion
+        hours_passed = 0
+        if last_completion_time:
+            hours_passed = (current_datetime - last_completion_time).total_seconds() / 3600
+
+        # Check if previous day is completed
+        previous_day_completed = False
+        if current_day > 1:
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM WeeklyNutritionCompletion wc
+                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                WHERE wc.client_id = %s 
+                AND n.nutrition_no = %s
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND wc.nutrition_completed = TRUE
+            """, [user_id, current_day - 1])
+            
+            previous_day_completed = cursor.fetchone()[0] > 0
+
+            # If trying to access a day that's not yet available
+            if current_day > last_completed_day + 1 or (current_day == last_completed_day + 1 and hours_passed < 24):
+                messages.error(request, f"Please complete Day {current_day - 1} first and wait 24 hours")
+                return redirect(f'/nutrition/?day={last_completed_day or 1}')
+
+        context = {
+            'plan': {'plan_name': plan_name},
             'food_details': food_details,
+            'week_start_date': week_start_date,
+            'now': current_datetime,
+            'current_day': current_day,
+            'completion_status': completion_status,
             'bmi': bmi,
-            'client': client,
             'nutrition_category': nutrition_category,
-            'plan': plan
-        })
+            'is_completed': completion_status and completion_status[1],
+            'is_not_followed': completion_status and not completion_status[1],
+            'last_completed_day': last_completed_day,
+            'hours_passed': hours_passed,
+            'previous_day_completed': previous_day_completed,
+            'next_available_time': last_completion_time + timedelta(hours=24) if last_completion_time else None
+        }
     
-    return redirect('login')
+    return render(request, 'nutritions.html', context)
 
+@custom_login_required
+def mark_nutrition_completed(request, day):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        week_start_date = datetime.strptime(request.POST.get('week_start_date'), '%Y-%m-%d').date()
+        status = request.POST.get('status', 'completed')
+
+        with connection.cursor() as cursor:
+            # Get nutrition IDs for the current day
+            cursor.execute("""
+                SELECT nutrition_id 
+                FROM tbl_nutritions 
+                WHERE nutrition_no = %s
+            """, [day])
+            
+            nutrition_ids = [row[0] for row in cursor.fetchall()]
+            
+            for nutrition_id in nutrition_ids:
+                cursor.execute("""
+                    INSERT INTO WeeklyNutritionCompletion 
+                    (client_id, week_start_date, nutrition_completed, nutrition_id, completion_date)
+                    VALUES (%s, %s, %s, %s, NOW())
+                """, [user_id, week_start_date, status == 'completed', nutrition_id])
+
+            if status == 'completed':
+                messages.success(request, f"Day {day}'s nutrition plan marked as followed!")
+            else:
+                messages.warning(request, f"Day {day}'s nutrition plan marked as not followed.")
+
+    return redirect(f'/nutrition/?day={day}')
 
 @fm_custom_login_required
 def fm_nutritions_view(request):
@@ -2730,6 +2992,7 @@ def set_goal(request):
 
         # Check if a goal already exists for the user
         existing_goal = Goal.objects.filter(user_id=user_id).first()
+        
         
         if existing_goal:
             messages.error(request, 'You have already set a goal.')
@@ -5036,3 +5299,91 @@ def get_follow_counts(cursor, user_id):
             (SELECT COUNT(*) FROM tbl_followers WHERE follower_id = %s) as following_count
     """, [user_id, user_id])
     return cursor.fetchone()
+
+from django.shortcuts import render, redirect
+from .models import WeeklyWorkoutCompletion, WeeklyNutritionCompletion, Workout, Nutrition
+
+@custom_login_required
+def mark_workout_completed(request, workout_id):
+    user_id = request.session.get('user_id')
+    current_date = datetime.now().date()
+    week_start_date = current_date - timedelta(days=current_date.weekday())
+
+    with connection.cursor() as cursor:
+        # Get the current day and service_no for this workout
+        cursor.execute("""
+            SELECT s.day, s.service_no
+            FROM tbl_services s 
+            JOIN tbl_workouts w ON s.workout_id = w.workout_id 
+            WHERE w.workout_id = %s
+        """, [workout_id])
+        current_day, service_no = cursor.fetchone()
+
+        # Insert the completion record
+        cursor.execute("""
+            INSERT INTO WeeklyWorkoutCompletion 
+            (client_id, week_start_date, workout_completed, workout_id, completion_date)
+            VALUES (%s, %s, TRUE, %s, NOW())
+        """, [user_id, week_start_date, workout_id])
+
+        # Get accurate count of total and completed workouts
+        cursor.execute("""
+            WITH DayWorkouts AS (
+                SELECT w.workout_id
+                FROM tbl_services s
+                JOIN tbl_workouts w ON s.workout_id = w.workout_id
+                WHERE s.service_no = %s AND s.day = %s
+            ),
+            CompletedWorkouts AS (
+                SELECT DISTINCT wc.workout_id
+                FROM WeeklyWorkoutCompletion wc
+                WHERE wc.client_id = %s 
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            )
+            SELECT 
+                COUNT(DISTINCT dw.workout_id) as total_workouts,
+                COUNT(DISTINCT cw.workout_id) as completed_workouts
+            FROM DayWorkouts dw
+            LEFT JOIN CompletedWorkouts cw ON dw.workout_id = cw.workout_id
+        """, [service_no, current_day, user_id])
+        
+        total_workouts, completed_workouts = cursor.fetchone()
+        
+        if completed_workouts >= total_workouts:
+            messages.success(request, f"All workouts for Day {current_day} completed! You can start Day {current_day + 1} after 24 hours.")
+        else:
+            remaining = total_workouts - completed_workouts
+            messages.success(request, f"Workout marked as completed! {remaining} more workout(s) to complete for Day {current_day}.")
+
+    return redirect('workouts_by_day', day=current_day)
+
+@custom_login_required
+def mark_nutrition_completed(request, day):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        week_start_date = datetime.strptime(request.POST.get('week_start_date'), '%Y-%m-%d').date()
+        status = request.POST.get('status', 'completed')
+
+        with connection.cursor() as cursor:
+            # Get nutrition IDs for the current day
+            cursor.execute("""
+                SELECT nutrition_id 
+                FROM tbl_nutritions 
+                WHERE nutrition_no = %s
+            """, [day])
+            
+            nutrition_ids = [row[0] for row in cursor.fetchall()]
+            
+            for nutrition_id in nutrition_ids:
+                cursor.execute("""
+                    INSERT INTO WeeklyNutritionCompletion 
+                    (client_id, week_start_date, nutrition_completed, nutrition_id, completion_date)
+                    VALUES (%s, %s, %s, %s, NOW())
+                """, [user_id, week_start_date, status == 'completed', nutrition_id])
+
+            if status == 'completed':
+                messages.success(request, f"Day {day}'s nutrition plan marked as followed!")
+            else:
+                messages.warning(request, f"Day {day}'s nutrition plan marked as not followed.")
+
+    return redirect(f'/nutrition/?day={day}')

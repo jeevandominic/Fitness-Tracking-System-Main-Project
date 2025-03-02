@@ -48,7 +48,7 @@
         .plan-button-container {
             display: flex;
             justify-content: center;
-            margin-top: 250px; /* Increase this value to move the button further down */
+            margin-top: 100px;  /* Adjusted from 250px */
         }
 
         .content-wrapper {
@@ -61,8 +61,9 @@
             width: 100%;
             background-color: #333;
             color: white;
-            z-index: 1000;  /* Ensure header is on top */
+            z-index: 1000;
             text-align: center;
+            height: 60px; /* Add fixed height */
         }
 
         body {
@@ -81,11 +82,13 @@
 
         .container {
             width: 80%;
-            margin: 0 auto;
-            padding: 100px 20px 20px;
+            margin: 80px auto 0;  /* Increased top margin to account for header */
+            padding: 40px 20px;
             background-color: white;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             border-radius: 10px;
+            position: relative;
+            overflow: visible;
         }
 
         .workout-list {
@@ -99,8 +102,10 @@
             background-color: #fff;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
+            padding: 25px;
             transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         .workout-item:hover {
@@ -129,56 +134,270 @@
                 font-size: 1.3rem;
             }
         }
+
+        .rest-day-message {
+            margin: 80px auto 20px;  /* Adjusted margin-top */
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .rest-day-message h2 {
+            color: #b35138;
+            margin-top: 20px;  /* Reduced from 120px */
+        }
+
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Add these styles for messages/alerts */
+        .messages {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+            width: 100%;
+            position: relative;
+            z-index: 100;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: center;
+            position: relative;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error, .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            margin: 0 0 20px 0;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        /* Additional hover effect */
+        .alert:hover {
+            opacity: 0.9;
+        }
+
+        /* Move the messages container above the buttons */
+        .messages-container {
+            margin: 0 auto 20px;  /* Removed negative margin */
+            width: 80%;
+            position: relative;
+            z-index: 1000;
+        }
+
+        .messages {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Active day button style */
+        .day-button.active {
+            background-color: #8b4130;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Add main content wrapper */
+        .main-content {
+            padding-top: 60px;  /* Match header height */
+            min-height: calc(100vh - 60px);  /* Account for header */
+        }
+
+        /* Style for the Mark as Complete button */
+        .workout-item form button {
+            background-color: #b35138;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .workout-item form button:hover:not([disabled]) {
+            background-color: #8b4130;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .workout-item form button[disabled] {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Style for View Image link */
+        .workout-item a {
+            display: inline-block;
+            background-color: #b35138;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .workout-item a:hover {
+            background-color: #8b4130;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Additional workout item styling */
+        .workout-item h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .workout-item p {
+            margin: 8px 0;
+            color: #666;
+        }
+
+        .workout-item p strong {
+            color: #b35138;
+        }
     </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workouts</title>
 </head>
 <body>
-    {% if plan %}
-        <div class="container">
-            <div class="button-container">
-                <a href="{% url 'workouts_by_day' 1 %}" class="day-button">Day 1- Chest</a>
-                <a href="{% url 'workouts_by_day' 6 %}" class="day-button">Day 2- Back</a>
-                <a href="{% url 'workouts_by_day' 4 %}" class="day-button">Day 3- Biceps</a>
-                <a href="{% url 'workouts_by_day' 5 %}" class="day-button">Day 4- Triceps</a>
-                <a href="{% url 'workouts_by_day' 3 %}" class="day-button">Day 5- Shoulder</a>
-                <a href="{% url 'workouts_by_day' 2 %}" class="day-button">Day 6- Leg</a>
+    <div class="main-content">
+        {% if is_rest_day %}
+            <div class="rest-day-message">
+                <h2>Today is Rest Day (Sunday)</h2>
+                <p>Take this time to recover and prepare for your next workout session.</p>
+                <p>Your next workout day will be tomorrow.</p>
             </div>
-
-            <h1>Workouts for {{ plan.plan_name }}</h1>
-            <p>{{ plan.description }}</p>
-
-            <div class="workout-list">
-                {% for workout in workouts %}
-                    <div class="workout-item">
-                        <h2>{{ workout.workout_name }}</h2>
-                        <p>{{ workout.description }}</p>
-                        <p><strong>Body Part:</strong> {{ workout.body_part }}</p>
-                        <p><strong>Duration:</strong> {{ workout.duration }} minutes 3*12 sets</p>
-                        <a href="{% url 'view_workout_img' workout.workout_id %}">View Image</a> {{ workout.workout_name }}
-                    </div>
-                {% empty %}
-                    <p>Please Select the Day.</p>
-                {% endfor %}
+        {% elif not plan %}
+            <div class="plan-button-container">
+                <a href="{% url 'plans' %}" class="plan-button">Please Choose a valid Plan To Continue</a>
             </div>
+        {% else %}
+            <div class="container">
+                <!-- Messages section at the top of the container -->
+                <div class="messages-container">
+                    {% if messages %}
+                        <ul class="messages">
+                            {% for message in messages %}
+                                <li class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                                    {{ message }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if error %}
+                        <div class="error-message">
+                            {{ error }}
+                        </div>
+                    {% endif %}
+                </div>
 
-            <div class="plan-buttons">
-                {% if plan.plan_name == 'Premium Plan' %}
-                    <a href="{% url 'personal_workout' %}" class="day-button">Workout Guidance</a>
-                {% elif plan.plan_name == 'Standard Plan' %}
-                    <a href="{% url 'personal_workout' %}" class="day-button">Workout Guidance</a>
-                {% endif %}
+                <!-- Day buttons -->
+                <div class="button-container">
+                    <a href="{% url 'workouts_by_day' 1 %}" class="day-button {% if current_day == 1 %}active{% endif %}">Day 1- Chest</a>
+                    <a href="{% url 'workouts_by_day' 2 %}" class="day-button {% if current_day == 2 %}active{% endif %}">Day 2- Back</a>
+                    <a href="{% url 'workouts_by_day' 3 %}" class="day-button {% if current_day == 3 %}active{% endif %}">Day 3- Biceps</a>
+                    <a href="{% url 'workouts_by_day' 4 %}" class="day-button {% if current_day == 4 %}active{% endif %}">Day 4- Triceps</a>
+                    <a href="{% url 'workouts_by_day' 5 %}" class="day-button {% if current_day == 5 %}active{% endif %}">Day 5- Shoulder</a>
+                    <a href="{% url 'workouts_by_day' 6 %}" class="day-button {% if current_day == 6 %}active{% endif %}">Day 6- Leg</a>
+                    <span class="day-button disabled">Day 7- Rest</span>
+                </div>
+
+                <!-- Rest of the content -->
+                <h1>Workouts for {{ plan.plan_name }}</h1>
+                <p>{{ plan.description }}</p>
+
+                <div class="workout-list">
+                    {% for workout in workouts %}
+                        <div class="workout-item">
+                            <h2>{{ workout.workout_name }}</h2>
+                            <p>{{ workout.description }}</p>
+                            <p><strong>Body Part:</strong> {{ workout.body_part }}</p>
+                            <p><strong>Duration:</strong> {{ workout.duration }} minutes 3*12 sets</p>
+                            <a href="{% url 'view_workout_img' workout.workout_id %}">View Image</a>
+                            <form method="POST" action="{% url 'mark_workout_completed' workout.workout_id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="week_start_date" value="{{ week_start_date|date:'Y-m-d' }}">
+                                {% if workout.completion_date %}
+                                    <button type="submit" disabled>Completed (7 days cooldown)</button>
+                                {% else %}
+                                    <button type="submit">Mark as Completed</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    {% empty %}
+                        <p>Please Select the Day.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="plan-buttons">
+                    {% if plan.plan_name == 'Premium Plan' %}
+                        <a href="{% url 'personal_workout' %}" class="day-button">Workout Guidance</a>
+                    {% elif plan.plan_name == 'Standard Plan' %}
+                        <a href="{% url 'personal_workout' %}" class="day-button">Workout Guidance</a>
+                    {% endif %}
+                </div>
             </div>
-        </div>
-    {% else %}
-        <div class="plan-button-container">
-            <a href="{% url 'plans' %}" class="plan-button">Please Choose a valid Plan To Continue</a>
-        </div>
-    {% endif %}
+        {% endif %}
+    </div>
+    <footer>
+        <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
+    </footer>
 </body>
 </html>
-<footer>
-    <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
-</footer>
 {% endblock %}

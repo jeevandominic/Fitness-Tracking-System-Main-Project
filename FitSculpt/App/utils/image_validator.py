@@ -51,6 +51,10 @@ class ImageValidator:
         # Convert PIL image to cv2 format
         opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
+        # Ensure the image is in the correct format
+        if opencv_image.dtype != np.uint8:
+            opencv_image = (opencv_image * 255).astype(np.uint8)  # Convert to 8-bit format
+        
         # Extract text using pytesseract
         text = pytesseract.image_to_string(opencv_image).lower()
         return text
@@ -58,7 +62,7 @@ class ImageValidator:
     def contains_fitness_keyword(self, text):
         return any(keyword in text.lower() for keyword in self.fitness_keywords)
 
-    def is_fitness_related(self, image_bytes, confidence_threshold=0.3):
+    def is_fitness_related(self, image_bytes, confidence_threshold=0.2):
         try:
             # Preprocess image
             image_tensor, original_image = self.preprocess_image(image_bytes)
@@ -68,13 +72,17 @@ class ImageValidator:
             predicted_label = self.imagenet_labels[np.argmax(predictions[0])]
             confidence = np.max(predictions[0])
             
+            print(f"Predicted Label: {predicted_label}, Confidence: {confidence}")  # Debugging output
+            
             # Check if prediction is in allowed categories
             is_allowed = any(category.lower() in predicted_label.lower() 
-                           for category in self.allowed_categories)
+                             for category in self.allowed_categories)
             
             # If not immediately allowed, check for text in image
             if not is_allowed or confidence < confidence_threshold:
                 extracted_text = self.extract_text(original_image)
+                print(f"Extracted Text: {extracted_text}")  # Debugging output
+                
                 if self.contains_fitness_keyword(extracted_text):
                     return True, f"Fitness text detected: {extracted_text[:50]}...", 1.0
             

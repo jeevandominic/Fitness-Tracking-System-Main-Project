@@ -166,6 +166,8 @@ urlpatterns = [
     path('community/post/<int:post_id>/', views.get_post_details, name='get_post_details'),
     path('community/post/<int:post_id>/delete/', views.delete_post, name='delete_post'),
     path('community/follow/<int:user_id>/', views.toggle_follow, name='toggle_follow'),
+    path('mark_workout_completed/<int:workout_id>/', views.mark_workout_completed, name='mark_workout_completed'),
+    path('mark_nutrition_completed/<int:day>/', views.mark_nutrition_completed, name='mark_nutrition_completed'),
 ]
 if settings.DEBUG:  
 
