@@ -1,4 +1,5 @@
 {% load static %}
+{% load custom_filters %}
 {% include 'header1.html' %}
 {% block content %}
 <style>
@@ -198,11 +199,31 @@
 
         <!-- Day selection buttons -->
         <div class="nutrition-days">
-            <a href="?day=1" class="day-button {% if current_day == 1 %}active{% endif %}">Day 1</a>
-            {% for day in "234567" %}
-                {% with day_num=day|add:"0" %}
-                    {% if previous_day_completed and hours_passed >= 24 or day_num <= last_completed_day %}
-                        <a href="?day={{ day }}" class="day-button {% if current_day == day_num %}active{% endif %}">Day {{ day }}</a>
+            {% if days_until_next_week %}
+                <span class="day-button disabled" title="Wait {{ days_until_next_week }} days to start new week">Day 1</span>
+            {% elif 1 in completed_days %}
+                <span class="day-button disabled" title="Day 1 completed">Day 1 ✓</span>
+            {% else %}
+                <a href="{% url 'nutrition' %}?day=1" class="day-button {% if current_day == 1 %}active{% endif %}">Day 1</a>
+            {% endif %}
+            
+            <!-- Day 2 button -->
+            {% if 2 in completed_days %}
+                <span class="day-button disabled" title="Day 2 completed">Day 2 ✓</span>
+            {% elif is_day_1_completed and can_start_day_2 %}
+                <a href="{% url 'nutrition' %}?day=2" class="day-button {% if current_day == 2 %}active{% endif %}">Day 2</a>
+            {% elif is_day_1_completed %}
+                <span class="day-button disabled" title="Please wait {{ 24|sub:hours_passed|floatformat:0 }} more hours">Day 2</span>
+            {% else %}
+                <span class="day-button disabled" title="Complete Day 1 first">Day 2</span>
+            {% endif %}
+
+            {% for day in "34567"|make_list %}
+                {% with day_num=day|add:0 %}
+                    {% if day_num in completed_days %}
+                        <span class="day-button disabled" title="Day {{ day }} completed">Day {{ day }} ✓</span>
+                    {% elif day_num|add:"-1" in completed_days and available_days|get_item:day_num %}
+                        <a href="{% url 'nutrition' %}?day={{ day }}" class="day-button {% if current_day == day_num %}active{% endif %}">Day {{ day }}</a>
                     {% else %}
                         <span class="day-button disabled" title="Complete previous day first">Day {{ day }}</span>
                     {% endif %}
@@ -244,12 +265,26 @@
             <div class="nutrition-status">
                 <form method="POST" action="{% url 'mark_nutrition_completed' current_day %}">
                     {% csrf_token %}
-                    <input type="hidden" name="week_start_date" value="{{ week_start_date|date:'Y-m-d' }}">
-                    {% if completion_status %}
-                        <button type="submit" disabled>Completed for Day {{ current_day }} (7 days cooldown)</button>
-                    {% else %}
+                    {% if current_day in completed_days %}
+                        <button type="submit" disabled>Day {{ current_day }} Completed ✓</button>
+                    {% elif current_day == 1 %}
+                        <!-- Day 1 is always available if not completed -->
                         <button type="submit" name="status" value="completed">Mark as Followed</button>
                         <button type="submit" name="status" value="not_completed" style="background-color: #dc3545;">Mark as Not Followed</button>
+                    {% elif current_day == 2 and is_day_1_completed and can_start_day_2 %}
+                        <!-- Day 2 is available if Day 1 is completed and 24 hours have passed -->
+                        <button type="submit" name="status" value="completed">Mark as Followed</button>
+                        <button type="submit" name="status" value="not_completed" style="background-color: #dc3545;">Mark as Not Followed</button>
+                    {% elif current_day > 2 and current_day|add:"-1" in completed_days and available_days|get_item:current_day %}
+                        <!-- Other days are available if previous day is completed and in available_days -->
+                        <button type="submit" name="status" value="completed">Mark as Followed</button>
+                        <button type="submit" name="status" value="not_completed" style="background-color: #dc3545;">Mark as Not Followed</button>
+                    {% else %}
+                        {% if current_day == 2 and is_day_1_completed %}
+                            <button type="submit" disabled>Please wait {{ 24|sub:hours_passed|floatformat:0 }} more hours</button>
+                        {% else %}
+                            <button type="submit" disabled>Complete previous day first</button>
+                        {% endif %}
                     {% endif %}
                 </form>
             </div>

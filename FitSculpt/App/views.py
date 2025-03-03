@@ -37,6 +37,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt  # Only for testing
 from .utils.image_validator import ImageValidator
 import time
+from django.utils import timezone
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -2076,13 +2077,12 @@ from django.db.models import Q
 @custom_login_required
 def nutrition_view(request):
     user_id = request.session.get('user_id')
-    current_date = datetime.now().date()
     current_datetime = datetime.now()
-    week_start_date = current_date - timedelta(days=current_date.weekday())
     
+    # Get the current day from request, defaulting to 1
     try:
         current_day = int(request.GET.get('day', 1))
-        current_day = max(1, min(current_day, 7))
+        current_day = max(1, min(current_day, 7))  # Ensure day is between 1 and 7
     except (ValueError, TypeError):
         current_day = 1
 
@@ -2124,56 +2124,70 @@ def nutrition_view(request):
         else:
             return render(request, 'nutritions.html', {'error': 'Please update your profile to get nutrition suggestions.'})
 
-        # Check if previous day's nutrition was completed and 24 hours have passed
-        if current_day > 1:
-            cursor.execute("""
-                SELECT completion_date, nutrition_completed
-                FROM WeeklyNutritionCompletion
-                WHERE client_id = %s 
-                AND DATE(completion_date) > DATE_SUB(NOW(), INTERVAL 7 DAY)
-                AND nutrition_id IN (
-                    SELECT nutrition_id 
-                    FROM tbl_nutritions 
-                    WHERE nutrition_no = %s
-                )
-                ORDER BY completion_date DESC
-                LIMIT 1
-            """, [user_id, current_day - 1])
-            
-            prev_day_completion = cursor.fetchone()
-            
-            if not prev_day_completion:
-                messages.error(request, f"Please complete Day {current_day - 1}'s nutrition plan first")
-                return redirect(f'/nutrition/?day={current_day - 1}')
-            
-            # Check if 24 hours have passed since completing previous day
-            last_completion_time = prev_day_completion[0]
-            hours_passed = (current_datetime - last_completion_time).total_seconds() / 3600
-            
-            if hours_passed < 24:
-                wait_hours = 24 - hours_passed
-                messages.info(request, f"Please wait {int(wait_hours)} more hours before marking Day {current_day}'s nutrition")
-                return redirect(f'/nutrition/?day={current_day - 1}')
-
-        # Check completion status for the current day
+        # Check Day 1 completion and time passed - Modified query
         cursor.execute("""
-            SELECT completion_date, nutrition_completed
-            FROM WeeklyNutritionCompletion
-            WHERE client_id = %s 
-            AND DATE(completion_date) > DATE_SUB(NOW(), INTERVAL 7 DAY)
-            AND nutrition_id IN (
-                SELECT nutrition_id 
-                FROM tbl_nutritions 
-                WHERE nutrition_no = %s
-            )
-            ORDER BY completion_date DESC
-            LIMIT 1
-        """, [user_id, current_day])
+            SELECT MAX(wnc.completion_date) as completion_date
+            FROM WeeklyNutritionCompletion wnc
+            JOIN tbl_nutritions n ON wnc.nutrition_id = n.nutrition_id
+            WHERE wnc.client_id = %s 
+            AND n.nutrition_no = 1
+            AND wnc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+        """, [user_id])
         
-        completion_status = cursor.fetchone()
+        day1_result = cursor.fetchone()
+        
+        # Initialize variables
+        is_day_1_completed = False
+        can_start_day_2 = False
+        hours_passed = 0
 
-        # Get nutrition details for current day based on BMI category
-        nutrition_query = """
+        if day1_result and day1_result[0]:  # Check if we got a valid completion date
+            is_day_1_completed = True
+            completion_time = day1_result[0]
+            hours_passed = (current_datetime - completion_time).total_seconds() / 3600
+            can_start_day_2 = hours_passed >= 24
+            print(f"Debug - Hours passed: {hours_passed}, Can start day 2: {can_start_day_2}")  # Debug print
+
+        # Get completion status for all days
+        cursor.execute("""
+            SELECT DISTINCT n.nutrition_no
+            FROM WeeklyNutritionCompletion wnc
+            JOIN tbl_nutritions n ON wnc.nutrition_id = n.nutrition_id
+            WHERE wnc.client_id = %s
+            AND wnc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+        """, [user_id])
+        completed_days = {row[0] for row in cursor.fetchall()}
+        print(f"Debug - Completed days: {completed_days}")  # Debug print
+
+        # Get available days with modified logic
+        available_days = {1: True}  # Day 1 is always available
+        
+        # If Day 1 is completed and 24 hours have passed, make Day 2 available
+        if is_day_1_completed and can_start_day_2:
+            available_days[2] = True
+            print("Debug - Day 2 marked as available")  # Debug print
+
+        # For days 3-7, check if previous day is completed
+        for day in range(3, 8):
+            if day - 1 in completed_days:
+                # Get the completion time of the previous day
+                cursor.execute("""
+                    SELECT MAX(wnc.completion_date)
+                    FROM WeeklyNutritionCompletion wnc
+                    JOIN tbl_nutritions n ON wnc.nutrition_id = n.nutrition_id
+                    WHERE wnc.client_id = %s 
+                    AND n.nutrition_no = %s
+                    AND wnc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                """, [user_id, day - 1])
+                prev_day_completion = cursor.fetchone()[0]
+                
+                if prev_day_completion:
+                    hours_since_prev = (current_datetime - prev_day_completion).total_seconds() / 3600
+                    if hours_since_prev >= 24:
+                        available_days[day] = True
+
+        # Get nutrition details for current day
+        cursor.execute("""
             SELECT 
                 n.nutrition_id,
                 n.description as nutrition_description,
@@ -2186,85 +2200,46 @@ def nutrition_view(request):
             JOIN tbl_food_database f ON n.food_id = f.food_id
             WHERE n.nutrition_no = %s
             ORDER BY n.nutrition_id
-        """
-
-        # Select nutrition based on BMI category and food type
-        if nutrition_category == 'Underweight':
-            nutrition_no = 1 if food_type == 'veg' else 5
-        elif nutrition_category == 'Normal':
-            nutrition_no = 4 if food_type == 'veg' else 8
-        elif nutrition_category == 'Overweight':
-            nutrition_no = 3 if food_type == 'veg' else 7
-        else:  # Obesity
-            nutrition_no = 3 if food_type == 'veg' else 7
-
-        cursor.execute(nutrition_query, [nutrition_no])
+        """, [current_day])
+        
         food_details = dictfetchall(cursor)
 
-        # Get the last completed day and its completion time
-        cursor.execute("""
-            WITH LastCompletions AS (
-                SELECT 
-                    n.nutrition_no as day,
-                    MAX(wc.completion_date) as completion_date
-                FROM WeeklyNutritionCompletion wc
-                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
-                WHERE wc.client_id = %s 
-                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
-                AND wc.nutrition_completed = TRUE
-                GROUP BY n.nutrition_no
-            )
-            SELECT 
-                MAX(day) as last_completed_day,
-                MAX(completion_date) as last_completion_time
-            FROM LastCompletions
-        """, [user_id])
-        
-        result = cursor.fetchone()
-        last_completed_day = result[0] or 0
-        last_completion_time = result[1]
+    context = {
+        'plan': {'plan_name': plan_name},
+        'food_details': food_details,
+        'current_day': current_day,
+        'bmi': bmi,
+        'nutrition_category': nutrition_category,
+        'available_days': available_days,
+        'completed_days': completed_days,
+        'is_day_1_completed': is_day_1_completed,
+        'can_start_day_2': can_start_day_2,
+        'hours_passed': hours_passed
+    }
+    
+    # Debug print final context values
+    print(f"Debug - Final context: is_day_1_completed={is_day_1_completed}, can_start_day_2={can_start_day_2}, hours_passed={hours_passed}")
+    
+    # After successful completion, you might want to automatically show the next day
+    if 'day' not in request.GET and current_day < 7:
+        last_completed = max(completed_days) if completed_days else 0
+        if last_completed > 0 and last_completed < 7:
+            next_day = last_completed + 1
+            if next_day in available_days:
+                current_day = next_day
 
-        # Calculate hours passed since last completion
-        hours_passed = 0
-        if last_completion_time:
-            hours_passed = (current_datetime - last_completion_time).total_seconds() / 3600
-
-        # Check if previous day is completed
-        previous_day_completed = False
-        if current_day > 1:
-            cursor.execute("""
-                SELECT COUNT(*)
-                FROM WeeklyNutritionCompletion wc
-                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
-                WHERE wc.client_id = %s 
-                AND n.nutrition_no = %s
-                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
-                AND wc.nutrition_completed = TRUE
-            """, [user_id, current_day - 1])
-            
-            previous_day_completed = cursor.fetchone()[0] > 0
-
-            # If trying to access a day that's not yet available
-            if current_day > last_completed_day + 1 or (current_day == last_completed_day + 1 and hours_passed < 24):
-                messages.error(request, f"Please complete Day {current_day - 1} first and wait 24 hours")
-                return redirect(f'/nutrition/?day={last_completed_day or 1}')
-
-        context = {
-            'plan': {'plan_name': plan_name},
-            'food_details': food_details,
-            'week_start_date': week_start_date,
-            'now': current_datetime,
-            'current_day': current_day,
-            'completion_status': completion_status,
-            'bmi': bmi,
-            'nutrition_category': nutrition_category,
-            'is_completed': completion_status and completion_status[1],
-            'is_not_followed': completion_status and not completion_status[1],
-            'last_completed_day': last_completed_day,
-            'hours_passed': hours_passed,
-            'previous_day_completed': previous_day_completed,
-            'next_available_time': last_completion_time + timedelta(hours=24) if last_completion_time else None
-        }
+    context = {
+        'plan': {'plan_name': plan_name},
+        'food_details': food_details,
+        'current_day': current_day,
+        'bmi': bmi,
+        'nutrition_category': nutrition_category,
+        'available_days': available_days,
+        'completed_days': completed_days,
+        'is_day_1_completed': is_day_1_completed,
+        'can_start_day_2': can_start_day_2,
+        'hours_passed': hours_passed
+    }
     
     return render(request, 'nutritions.html', context)
 
@@ -2272,32 +2247,98 @@ def nutrition_view(request):
 def mark_nutrition_completed(request, day):
     if request.method == 'POST':
         user_id = request.session.get('user_id')
-        week_start_date = datetime.strptime(request.POST.get('week_start_date'), '%Y-%m-%d').date()
+        current_datetime = datetime.now()
         status = request.POST.get('status', 'completed')
 
         with connection.cursor() as cursor:
-            # Get nutrition IDs for the current day
+            # First check if ANY nutrition for this day is already completed
             cursor.execute("""
-                SELECT nutrition_id 
-                FROM tbl_nutritions 
-                WHERE nutrition_no = %s
-            """, [day])
+                SELECT COUNT(*) 
+                FROM WeeklyNutritionCompletion wc
+                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                WHERE wc.client_id = %s 
+                AND n.nutrition_no = %s
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            """, [user_id, day])
             
-            nutrition_ids = [row[0] for row in cursor.fetchall()]
+            completion_count = cursor.fetchone()[0]
+            if completion_count > 0:
+                messages.error(request, f"Day {day} has already been marked as completed")
+                return redirect('nutrition')
+
+            # Get the week_start_date from Day 1's completion if it exists
+            cursor.execute("""
+                SELECT week_start_date
+                FROM WeeklyNutritionCompletion wc
+                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                WHERE wc.client_id = %s 
+                AND n.nutrition_no = 1
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                LIMIT 1
+            """, [user_id])
             
-            for nutrition_id in nutrition_ids:
+            week_start_result = cursor.fetchone()
+            week_start_date = week_start_result[0] if week_start_result else current_datetime.date()
+
+            # For days after day 1, check if previous day is completed
+            if day > 1:
                 cursor.execute("""
-                    INSERT INTO WeeklyNutritionCompletion 
-                    (client_id, week_start_date, nutrition_completed, nutrition_id, completion_date)
-                    VALUES (%s, %s, %s, %s, NOW())
-                """, [user_id, week_start_date, status == 'completed', nutrition_id])
+                    SELECT completion_date
+                    FROM WeeklyNutritionCompletion wc
+                    JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                    WHERE wc.client_id = %s 
+                    AND n.nutrition_no = %s
+                    AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    ORDER BY wc.completion_date DESC
+                    LIMIT 1
+                """, [user_id, day - 1])
+                
+                result = cursor.fetchone()
+                if not result:
+                    messages.error(request, f"Please complete Day {day-1} first")
+                    return redirect('nutrition')
+                
+                prev_day_completion = result[0]
+                hours_passed = (current_datetime - prev_day_completion).total_seconds() / 3600
+                
+                if hours_passed < 24:
+                    messages.error(request, f"Please wait {int(24 - hours_passed)} more hours before completing Day {day}")
+                    return redirect('nutrition')
 
-            if status == 'completed':
-                messages.success(request, f"Day {day}'s nutrition plan marked as followed!")
-            else:
-                messages.warning(request, f"Day {day}'s nutrition plan marked as not followed.")
+            try:
+                # Start a transaction
+                cursor.execute("START TRANSACTION")
+                
+                # Get nutrition IDs for the current day
+                cursor.execute("""
+                    SELECT nutrition_id 
+                    FROM tbl_nutritions 
+                    WHERE nutrition_no = %s
+                """, [day])
+                
+                nutrition_ids = [row[0] for row in cursor.fetchall()]
+                
+                # Insert completion records using the consistent week_start_date
+                completion_time = current_datetime
+                for nutrition_id in nutrition_ids:
+                    cursor.execute("""
+                        INSERT INTO WeeklyNutritionCompletion 
+                        (client_id, week_start_date, nutrition_completed, nutrition_id, completion_date)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, [user_id, week_start_date, status == 'completed', nutrition_id, completion_time])
 
-    return redirect(f'/nutrition/?day={day}')
+                # Commit the transaction
+                cursor.execute("COMMIT")
+                
+                messages.success(request, f"Day {day}'s nutrition plan marked as {'followed' if status == 'completed' else 'not followed'}")
+                return redirect('nutrition')
+                
+            except Exception as e:
+                cursor.execute("ROLLBACK")
+                messages.error(request, f"An error occurred: {str(e)}")
+                return redirect('nutrition')
+
+    return redirect('nutrition')
 
 @fm_custom_login_required
 def fm_nutritions_view(request):
@@ -5306,11 +5347,10 @@ from .models import WeeklyWorkoutCompletion, WeeklyNutritionCompletion, Workout,
 @custom_login_required
 def mark_workout_completed(request, workout_id):
     user_id = request.session.get('user_id')
-    current_date = datetime.now().date()
-    week_start_date = current_date - timedelta(days=current_date.weekday())
+    current_datetime = datetime.now()
 
     with connection.cursor() as cursor:
-        # Get the current day and service_no for this workout
+        # Get the current day for this workout
         cursor.execute("""
             SELECT s.day, s.service_no
             FROM tbl_services s 
@@ -5319,71 +5359,137 @@ def mark_workout_completed(request, workout_id):
         """, [workout_id])
         current_day, service_no = cursor.fetchone()
 
-        # Insert the completion record
+        # If this is day 1, use current date as week_start_date
+        if current_day == 1:
+            week_start_date = current_datetime.date()
+        else:
+            # Get the week_start_date from day 1's completion
+            cursor.execute("""
+                SELECT MIN(wc.completion_date)
+                FROM WeeklyWorkoutCompletion wc
+                JOIN tbl_services s ON wc.workout_id = s.workout_id
+                WHERE wc.client_id = %s 
+                AND s.day = 1
+                AND s.service_no = %s
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            """, [user_id, service_no])
+            
+            day1_completion = cursor.fetchone()[0]
+            if not day1_completion:
+                messages.error(request, "Please complete Day 1 workouts first")
+                return redirect('workouts_by_day', day=1)
+            week_start_date = day1_completion.date()
+
+        # Rest of your existing code...
         cursor.execute("""
             INSERT INTO WeeklyWorkoutCompletion 
             (client_id, week_start_date, workout_completed, workout_id, completion_date)
             VALUES (%s, %s, TRUE, %s, NOW())
         """, [user_id, week_start_date, workout_id])
 
-        # Get accurate count of total and completed workouts
-        cursor.execute("""
-            WITH DayWorkouts AS (
-                SELECT w.workout_id
-                FROM tbl_services s
-                JOIN tbl_workouts w ON s.workout_id = w.workout_id
-                WHERE s.service_no = %s AND s.day = %s
-            ),
-            CompletedWorkouts AS (
-                SELECT DISTINCT wc.workout_id
-                FROM WeeklyWorkoutCompletion wc
-                WHERE wc.client_id = %s 
-                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
-            )
-            SELECT 
-                COUNT(DISTINCT dw.workout_id) as total_workouts,
-                COUNT(DISTINCT cw.workout_id) as completed_workouts
-            FROM DayWorkouts dw
-            LEFT JOIN CompletedWorkouts cw ON dw.workout_id = cw.workout_id
-        """, [service_no, current_day, user_id])
-        
-        total_workouts, completed_workouts = cursor.fetchone()
-        
-        if completed_workouts >= total_workouts:
-            messages.success(request, f"All workouts for Day {current_day} completed! You can start Day {current_day + 1} after 24 hours.")
-        else:
-            remaining = total_workouts - completed_workouts
-            messages.success(request, f"Workout marked as completed! {remaining} more workout(s) to complete for Day {current_day}.")
-
-    return redirect('workouts_by_day', day=current_day)
+        messages.success(request, "Workout marked as completed!")
+        return redirect('workouts_by_day', day=current_day)
 
 @custom_login_required
 def mark_nutrition_completed(request, day):
     if request.method == 'POST':
         user_id = request.session.get('user_id')
-        week_start_date = datetime.strptime(request.POST.get('week_start_date'), '%Y-%m-%d').date()
+        current_datetime = datetime.now()
         status = request.POST.get('status', 'completed')
 
         with connection.cursor() as cursor:
-            # Get nutrition IDs for the current day
+            # First check if ANY nutrition for this day is already completed
             cursor.execute("""
-                SELECT nutrition_id 
-                FROM tbl_nutritions 
-                WHERE nutrition_no = %s
-            """, [day])
+                SELECT COUNT(*) 
+                FROM WeeklyNutritionCompletion wc
+                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                WHERE wc.client_id = %s 
+                AND n.nutrition_no = %s
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+            """, [user_id, day])
             
-            nutrition_ids = [row[0] for row in cursor.fetchall()]
+            completion_count = cursor.fetchone()[0]
+            if completion_count > 0:
+                messages.error(request, f"Day {day} has already been marked as completed")
+                return redirect('nutrition')
+
+            # Get the week_start_date from Day 1's completion if it exists
+            cursor.execute("""
+                SELECT week_start_date
+                FROM WeeklyNutritionCompletion wc
+                JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                WHERE wc.client_id = %s 
+                AND n.nutrition_no = 1
+                AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                LIMIT 1
+            """, [user_id])
             
-            for nutrition_id in nutrition_ids:
+            week_start_result = cursor.fetchone()
+            week_start_date = week_start_result[0] if week_start_result else current_datetime.date()
+
+            # For days after day 1, check if previous day is completed
+            if day > 1:
                 cursor.execute("""
-                    INSERT INTO WeeklyNutritionCompletion 
-                    (client_id, week_start_date, nutrition_completed, nutrition_id, completion_date)
-                    VALUES (%s, %s, %s, %s, NOW())
-                """, [user_id, week_start_date, status == 'completed', nutrition_id])
+                    SELECT completion_date
+                    FROM WeeklyNutritionCompletion wc
+                    JOIN tbl_nutritions n ON wc.nutrition_id = n.nutrition_id
+                    WHERE wc.client_id = %s 
+                    AND n.nutrition_no = %s
+                    AND wc.completion_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    ORDER BY wc.completion_date DESC
+                    LIMIT 1
+                """, [user_id, day - 1])
+                
+                result = cursor.fetchone()
+                if not result:
+                    messages.error(request, f"Please complete Day {day-1} first")
+                    return redirect('nutrition')
+                
+                prev_day_completion = result[0]
+                hours_passed = (current_datetime - prev_day_completion).total_seconds() / 3600
+                
+                if hours_passed < 24:
+                    messages.error(request, f"Please wait {int(24 - hours_passed)} more hours before completing Day {day}")
+                    return redirect('nutrition')
 
-            if status == 'completed':
-                messages.success(request, f"Day {day}'s nutrition plan marked as followed!")
-            else:
-                messages.warning(request, f"Day {day}'s nutrition plan marked as not followed.")
+            try:
+                # Start a transaction
+                cursor.execute("START TRANSACTION")
+                
+                # Get nutrition IDs for the current day
+                cursor.execute("""
+                    SELECT nutrition_id 
+                    FROM tbl_nutritions 
+                    WHERE nutrition_no = %s
+                """, [day])
+                
+                nutrition_ids = [row[0] for row in cursor.fetchall()]
+                
+                # Insert completion records using the consistent week_start_date
+                completion_time = current_datetime
+                for nutrition_id in nutrition_ids:
+                    cursor.execute("""
+                        INSERT INTO WeeklyNutritionCompletion 
+                        (client_id, week_start_date, nutrition_completed, nutrition_id, completion_date)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, [user_id, week_start_date, status == 'completed', nutrition_id, completion_time])
 
-    return redirect(f'/nutrition/?day={day}')
+                # Commit the transaction
+                cursor.execute("COMMIT")
+                
+                messages.success(request, f"Day {day}'s nutrition plan marked as {'followed' if status == 'completed' else 'not followed'}")
+                
+                # Modified redirect logic
+                next_day = day + 1
+                if next_day <= 7:
+                    # Use the proper URL format
+                    return redirect('nutrition')  # This will redirect to base nutrition URL
+                else:
+                    return redirect('nutrition')
+                
+            except Exception as e:
+                cursor.execute("ROLLBACK")
+                messages.error(request, f"An error occurred: {str(e)}")
+                return redirect('nutrition')
+
+    return redirect('nutrition')
