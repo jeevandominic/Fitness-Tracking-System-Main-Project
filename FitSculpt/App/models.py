@@ -521,3 +521,26 @@ class WeeklyNutritionCompletion(models.Model):
     class Meta:
         managed = False  # This model is not managed by Django
         unique_together = ('client', 'week_start_date', 'nutrition_id')
+
+class MentalFitnessPrediction(models.Model):
+    prediction_id = models.AutoField(primary_key=True)
+    user_id = models.IntegerField()
+    prediction_date = models.DateTimeField(auto_now_add=True)
+    # Input fields
+    physical_fitness_level = models.CharField(max_length=20)
+    exercise_hours = models.FloatField()
+    sleep_hours = models.FloatField()
+    diet_quality = models.CharField(max_length=20)
+    # Output fields
+    mental_fitness_level = models.CharField(max_length=20)
+    stress_level = models.CharField(max_length=20)
+    social_engagement_score = models.FloatField()
+    depression_score = models.FloatField()
+    anxiety_score = models.FloatField()
+    confidence_level = models.CharField(max_length=20)
+    cleverness_score = models.FloatField()
+    focus_level = models.CharField(max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = 'tbl_mental_fitness_predictions'

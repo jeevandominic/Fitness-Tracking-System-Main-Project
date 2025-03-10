@@ -38,6 +38,8 @@ from django.views.decorators.csrf import csrf_exempt  # Only for testing
 from .utils.image_validator import ImageValidator
 import time
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
+import pandas as pd
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -4029,12 +4031,15 @@ def remove_from_wishlist(request, wishlist_id):
 from django.shortcuts import render
 from .utils.mind_body_synergy import multi_output_model, encoder_dict, scaler
 import pandas as pd
-
+@custom_login_required
 def predict_fitness(request):
     if request.method == 'POST':
         # Get form data
         exercise_hours = float(request.POST.get('exercise_hours_per_week', 0))
         sleep_hours = float(request.POST.get('sleep_hours_per_night', 0))
+        physical_fitness_level = request.POST.get('physical_fitness_level')
+        diet_quality = request.POST.get('diet_quality')
+        user_id = request.session.get('user_id')
 
         # Server-side validation
         if not (0 <= exercise_hours <= 15 and 0 <= sleep_hours <= 15):
@@ -4043,10 +4048,10 @@ def predict_fitness(request):
 
         # Extract user inputs from the form
         user_data = {
-            'Physical_Fitness_Level': request.POST.get('physical_fitness_level'),
+            'Physical_Fitness_Level': physical_fitness_level,
             'Exercise_Hours_Per_Week': exercise_hours,
             'Sleep_Hours_Per_Night': sleep_hours,
-            'Diet_Quality': request.POST.get('diet_quality'),
+            'Diet_Quality': diet_quality,
         }
 
         # Convert to DataFrame
@@ -4076,15 +4081,158 @@ def predict_fitness(request):
             encoder = encoder_dict.get(col)
             return encoder.inverse_transform([int(round(value))])[0] if encoder else value
 
+        # Convert categorical values
         for col in ["Mental_Fitness_Level", "Stress_Level", "Confidence_Level", "Focus_Level"]:
             predictions_df[col] = predictions_df[col].apply(lambda x: decode_column(col, x))
 
+        # Convert numeric scores to percentages
+        numeric_columns = [
+            "Social_Engagement_Score", 
+            "Depression_Score", 
+            "Anxiety_Score", 
+            "Cleverness_Score"
+        ]
+        
+        for col in numeric_columns:
+            predictions_df[col] = predictions_df[col].apply(lambda x: f"{round(x * 10)}%")
+
+        # Get the predictions as a dictionary
+        prediction_results = predictions_df.iloc[0].to_dict()
+
+        # Store the predictions in the database
+        with connection.cursor() as cursor:
+            # Convert percentage strings back to float values for storage
+            social_score = float(prediction_results['Social_Engagement_Score'].rstrip('%')) / 10
+            depression_score = float(prediction_results['Depression_Score'].rstrip('%')) / 10
+            anxiety_score = float(prediction_results['Anxiety_Score'].rstrip('%')) / 10
+            cleverness_score = float(prediction_results['Cleverness_Score'].rstrip('%')) / 10
+
+            cursor.execute("""
+                INSERT INTO tbl_mental_fitness_predictions 
+                (user_id, physical_fitness_level, exercise_hours, sleep_hours, diet_quality,
+                mental_fitness_level, stress_level, social_engagement_score, depression_score,
+                anxiety_score, confidence_level, cleverness_score, focus_level)
+                VALUES 
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, [
+                user_id, 
+                physical_fitness_level, 
+                exercise_hours, 
+                sleep_hours, 
+                diet_quality,
+                prediction_results['Mental_Fitness_Level'],
+                prediction_results['Stress_Level'],
+                social_score,
+                depression_score,
+                anxiety_score,
+                prediction_results['Confidence_Level'],
+                cleverness_score,
+                prediction_results['Focus_Level']
+            ])
+
         # Render results
         return render(request, 'predict_results.html', {
-            'predictions': predictions_df.iloc[0].to_dict(),
+            'predictions': prediction_results,
         })
 
-    return render(request, 'predict_form.html')
+    # For GET request, calculate pre-filled values
+    user_id = request.session.get('user_id')
+    current_date = datetime.now().date()
+
+    # Get the most recent week's data
+    with connection.cursor() as cursor:
+        # Get the most recent week_start_date from either completion table
+        cursor.execute("""
+            SELECT week_start_date 
+            FROM (
+                SELECT week_start_date FROM WeeklyWorkoutCompletion 
+                WHERE client_id = %s
+                UNION
+                SELECT week_start_date FROM WeeklyNutritionCompletion 
+                WHERE client_id = %s
+            ) combined_dates
+            ORDER BY week_start_date DESC
+            LIMIT 1
+        """, [user_id, user_id])
+        
+        result = cursor.fetchone()
+        if result:
+            week_start_date = result[0]
+            
+            # Count completed workouts for the week
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM WeeklyWorkoutCompletion 
+                WHERE client_id = %s AND week_start_date = %s
+            """, [user_id, week_start_date])
+            workout_count = cursor.fetchone()[0]
+            
+            # Calculate exercise hours (divide total workouts by 9 to get hours)
+            exercise_hours = min(workout_count / 9, 15)  # Cap at 15 hours
+            
+            # Determine physical fitness level based on workout completion
+            if workout_count >= 10:
+                physical_fitness = "High"
+            elif workout_count >= 5:
+                physical_fitness = "Medium"
+            else:
+                physical_fitness = "Low"
+            
+            # Count completed nutrition days for the week
+            cursor.execute("""
+                SELECT COUNT(DISTINCT nutrition_id) 
+                FROM WeeklyNutritionCompletion 
+                WHERE client_id = %s AND week_start_date = %s
+            """, [user_id, week_start_date])
+            nutrition_days = cursor.fetchone()[0]
+            
+            # Determine diet quality based on nutrition completion
+            if nutrition_days >= 6:
+                diet_quality = "Good"
+            elif nutrition_days >= 3:
+                diet_quality = "Average"
+            else:
+                diet_quality = "Poor"
+        else:
+            # Default values if no data is found
+            exercise_hours = 0
+            physical_fitness = "Low"
+            diet_quality = "Average"
+
+        # Get historical prediction data
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(prediction_date, '%%Y-%%m-%%d') as prediction_date,
+                mental_fitness_level, 
+                stress_level, 
+                social_engagement_score * 10 as social_engagement_score, 
+                depression_score * 10 as depression_score,
+                anxiety_score * 10 as anxiety_score,
+                confidence_level,
+                cleverness_score * 10 as cleverness_score,
+                focus_level
+            FROM tbl_mental_fitness_predictions
+            WHERE user_id = %s
+            ORDER BY prediction_date DESC
+            LIMIT 5
+        """, [user_id])
+        
+        columns = [col[0] for col in cursor.description]
+        historical_data = [
+            dict(zip(columns, row))
+            for row in cursor.fetchall()
+        ]
+
+    context = {
+        'prefilled_data': {
+            'exercise_hours': round(exercise_hours, 1),  # Round to 1 decimal place
+            'physical_fitness': physical_fitness,
+            'diet_quality': diet_quality
+        },
+        'historical_data': json.dumps(historical_data, cls=DjangoJSONEncoder)
+    }
+    
+    return render(request, 'predict_form.html', context)
     
 from django.shortcuts import render
 from .models import Client

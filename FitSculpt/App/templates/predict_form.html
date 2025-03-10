@@ -1,4 +1,5 @@
 {% load static %}
+{% load custom_filters %}
 {% block content %}
 {% include 'header1.html' %}
 <!DOCTYPE html>
@@ -121,26 +122,52 @@
             cursor: not-allowed;
             transform: none;
         }
+
+        .graph-container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            height: 500px;  /* Set a fixed height */
+        }
+
+        .graph-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 400px !important;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <h1>Mind Body Synergy</h1>
     <form method="POST" action="{% url 'predict_fitness' %}">
         {% csrf_token %}
         <label>Physical Fitness Level:</label>
-        <select name="physical_fitness_level" required>
-            <option value="" disabled selected>Select your fitness level</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
+        <select name="physical_fitness_level" required readonly disabled>
+            <option value="" disabled>Select your fitness level</option>
+            <option value="Low" {% if prefilled_data.physical_fitness == 'Low' %}selected{% endif %}>Low</option>
+            <option value="Medium" {% if prefilled_data.physical_fitness == 'Medium' %}selected{% endif %}>Medium</option>
+            <option value="High" {% if prefilled_data.physical_fitness == 'High' %}selected{% endif %}>High</option>
         </select>
+        <input type="hidden" name="physical_fitness_level" value="{{ prefilled_data.physical_fitness }}">
         <label>Diet Quality:</label>
-        <select name="diet_quality" required>
-            <option value="" disabled selected>Select your diet quality</option>
-            <option value="Poor">Poor</option>
-            <option value="Average">Average</option>
-            <option value="Good">Good</option>
+        <select name="diet_quality" required readonly disabled>
+            <option value="" disabled>Select your diet quality</option>
+            <option value="Poor" {% if prefilled_data.diet_quality == 'Poor' %}selected{% endif %}>Poor</option>
+            <option value="Average" {% if prefilled_data.diet_quality == 'Average' %}selected{% endif %}>Average</option>
+            <option value="Good" {% if prefilled_data.diet_quality == 'Good' %}selected{% endif %}>Good</option>
         </select>
+        <input type="hidden" name="diet_quality" value="{{ prefilled_data.diet_quality }}">
         <label>Exercise Hours Per Week:</label> 
         <input type="number" 
                step="0.1" 
@@ -148,7 +175,10 @@
                id="exercise_hours" 
                min="0" 
                max="15" 
+               value="{{ prefilled_data.exercise_hours }}"
                required 
+               readonly
+               style="background-color: #f0f0f0;"
                oninput="validateInput(this, 'exerciseError')">
         <span id="exerciseError" class="error-message"></span>
         <label>Sleep Hours Per Night:</label>
@@ -164,6 +194,13 @@
         
         <button type="submit">Access Your Mental Fitness Level</button>
     </form>
+
+    {% if historical_data %}
+    <div class="graph-container">
+        <h2>Your Mental Fitness History</h2>
+        <canvas id="mentalFitnessChart"></canvas>
+    </div>
+    {% endif %}
 
     <footer>
         <p>&copy; {{ 2024 }} My Fitness Site. All rights reserved.</p>
@@ -223,6 +260,110 @@
         // Initial validation check
         validateInput(document.getElementById('exercise_hours'), 'exerciseError');
         validateInput(document.getElementById('sleep_hours'), 'sleepError');
+
+        {% if historical_data %}
+        const ctx = document.getElementById('mentalFitnessChart').getContext('2d');
+        
+        // Parse the historical data from Django
+        const historicalData = {{ historical_data|safe }};
+        
+        // Prepare data for the chart
+        const dates = historicalData.map(item => {
+            const date = new Date(item.prediction_date);
+            return date.toLocaleDateString();
+        });
+        
+        const socialScores = historicalData.map(item => parseFloat(item.social_engagement_score));
+        const depressionScores = historicalData.map(item => parseFloat(item.depression_score));
+        const anxietyScores = historicalData.map(item => parseFloat(item.anxiety_score));
+        const clevernessScores = historicalData.map(item => parseFloat(item.cleverness_score));
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Social Engagement',
+                        data: socialScores,
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Depression Score',
+                        data: depressionScores,
+                        borderColor: '#2196F3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Anxiety Score',
+                        data: anxietyScores,
+                        borderColor: '#F44336',
+                        backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Cleverness Score',
+                        data: clevernessScores,
+                        borderColor: '#FF9800',
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            padding: 20,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Mental Fitness Progress Over Time',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        padding: {
+                            top: 10,
+                            bottom: 30
+                        }
+                    }
+                }
+            }
+        });
+        {% endif %}
     </script>
 </body>
 </html>

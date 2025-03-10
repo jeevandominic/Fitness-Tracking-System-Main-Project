@@ -1,4 +1,5 @@
 {% load static %}
+{% load custom_filters %}
 {% block content %}
 {% include 'header1.html' %}
 <!DOCTYPE html>
@@ -83,7 +84,14 @@
         <h1>Prediction Results</h1>
         <ul class="results-list">
             {% for key, value in predictions.items %}
-            <li>{{ key }}: {{ value }}</li>
+            <li>
+                <strong>{{ key|format_key }}:</strong>
+                {% if "Score" in key %}
+                    {{ value }}  <!-- Will now show as percentage -->
+                {% else %}
+                    {{ value }}
+                {% endif %}
+            </li>
             {% endfor %}
         </ul>
         <a href="{% url 'predict_fitness' %}" class="results-link">Access Another Mental Fitness</a>
