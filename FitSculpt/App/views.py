@@ -40,6 +40,7 @@ import time
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 import pandas as pd
+from django.conf import settings
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -4302,6 +4303,10 @@ def injury_prediction_view(request):
 
 @custom_login_required
 def analyze_workout_view(request):
+    if not settings.ENABLE_ML_FEATURES:
+        messages.warning(request, "ML features are currently disabled")
+        return redirect('workouts')
+        
     if request.method == 'POST' and request.FILES.get('workout_video'):
         video_file = request.FILES['workout_video']
         

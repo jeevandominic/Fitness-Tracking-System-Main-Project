@@ -21,6 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env_path = os.path.join(BASE_DIR, '.env')
 load_dotenv(env_path)
 
+# Add this near the top of settings.py
+ENABLE_ML_FEATURES = False
+try:
+    import tensorflow
+    import mediapipe
+    ENABLE_ML_FEATURES = True
+except ImportError:
+    pass
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
