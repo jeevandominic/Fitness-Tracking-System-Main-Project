@@ -40,6 +40,18 @@ import time
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 import pandas as pd
+from .utils.mind_body_synergy import multi_output_model, encoder_dict, scaler
+from .utils.suggestion_generator import WellnessSuggestionGenerator
+from django.http import FileResponse
+from .utils.pdf_generator import MentalFitnessReportGenerator
+from django.conf import settings
+import logging
+
+# Initialize the suggestion generator
+suggestion_generator = WellnessSuggestionGenerator()
+
+# Configure the logger
+logger = logging.getLogger(__name__)
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a list of dictionaries"""
@@ -4030,7 +4042,12 @@ def remove_from_wishlist(request, wishlist_id):
 
 from django.shortcuts import render
 from .utils.mind_body_synergy import multi_output_model, encoder_dict, scaler
+from .utils.suggestion_generator import WellnessSuggestionGenerator
 import pandas as pd
+
+# Initialize the suggestion generator
+suggestion_generator = WellnessSuggestionGenerator()
+
 @custom_login_required
 def predict_fitness(request):
     if request.method == 'POST':
@@ -4099,6 +4116,9 @@ def predict_fitness(request):
         # Get the predictions as a dictionary
         prediction_results = predictions_df.iloc[0].to_dict()
 
+        # Generate personalized suggestions using the ML-based generator
+        suggestions = suggestion_generator.generate_suggestions(prediction_results)
+
         # Store the predictions in the database
         with connection.cursor() as cursor:
             # Convert percentage strings back to float values for storage
@@ -4130,9 +4150,14 @@ def predict_fitness(request):
                 prediction_results['Focus_Level']
             ])
 
-        # Render results
+        # Render results with suggestions
+        # Store predictions and suggestions in session for PDF generation
+        request.session['prediction_results'] = prediction_results  # Changed from 'predictions'
+        request.session['suggestions'] = suggestions
+        
         return render(request, 'predict_results.html', {
             'predictions': prediction_results,
+            'suggestions': suggestions,  # Add suggestions to the context
         })
 
     # For GET request, calculate pre-filled values
@@ -5641,3 +5666,82 @@ def mark_nutrition_completed(request, day):
                 return redirect('nutrition')
 
     return redirect('nutrition')
+
+def download_report(request):
+    logger.info("Starting download_report function")
+    
+    # Check session data
+    prediction_results = request.session.get('prediction_results')
+    suggestions = request.session.get('suggestions')
+    
+    logger.info(f"Session data - Predictions: {prediction_results}")
+    logger.info(f"Session data - Suggestions: {suggestions}")
+
+    if not prediction_results or not suggestions:
+        logger.error("Missing session data")
+        return render(request, 'error.html', {
+            'error_message': 'No prediction data available. Please complete a mental fitness assessment first.'
+        })
+
+    try:
+        # Generate a unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'mental_fitness_report_{timestamp}.pdf'
+        
+        # Create reports directory path
+        reports_dir = os.path.join(settings.MEDIA_ROOT, 'reports')
+        
+        # Ensure the reports directory exists
+        if not os.path.exists(reports_dir):
+            logger.info(f"Creating reports directory at: {reports_dir}")
+            os.makedirs(reports_dir, exist_ok=True)
+        
+        # Set the complete output path
+        output_path = os.path.join(reports_dir, filename)
+        logger.info(f"Generating PDF at: {output_path}")
+
+        # Generate the report
+        generator = MentalFitnessReportGenerator()
+        generator.generate_report(
+            output_path=output_path,
+            predictions=prediction_results,
+            suggestions=suggestions
+        )
+
+        # Verify the file was created
+        if not os.path.exists(output_path):
+            raise Exception("PDF file was not created")
+        
+        # Get file size for content length header
+        file_size = os.path.getsize(output_path)
+        logger.info(f"PDF generated successfully. Size: {file_size} bytes")
+
+        # Create the response
+        with open(output_path, 'rb') as pdf_file:
+            response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            response['Content-Length'] = file_size
+            
+            # Add cache control headers
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+            
+            logger.info("Returning PDF response")
+            return response
+
+    except Exception as e:
+        error_msg = f"Error generating PDF report: {str(e)}"
+        logger.error(error_msg)
+        return render(request, 'error.html', {
+            'error_message': error_msg
+        })
+
+    finally:
+        # Clean up the file after sending the response
+        try:
+            if 'output_path' in locals() and os.path.exists(output_path):
+                logger.info(f"Cleaning up file: {output_path}")
+                os.remove(output_path)
+        except Exception as e:
+            logger.error(f"Error cleaning up PDF file: {str(e)}")
