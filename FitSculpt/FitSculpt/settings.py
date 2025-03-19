@@ -21,14 +21,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env_path = os.path.join(BASE_DIR, '.env')
 load_dotenv(env_path)
 
-# Add this near the top of settings.py
-ENABLE_ML_FEATURES = False
-try:
-    import tensorflow
-    import mediapipe
-    ENABLE_ML_FEATURES = True
-except ImportError:
-    pass
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -41,6 +33,9 @@ DEBUG = True
 
 # ALLOWED_HOSTS = ['yourdomain.com', 'localhost', '127.0.0.1']
 ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = [
+    'https://361c-136-232-57-110.ngrok-free.app',  # Add your ngrok domain here
+]
 
 
 
@@ -113,8 +108,17 @@ DATABASES = {
         'NAME': 'fitsculpt',
         'USER': 'root',
         'PASSWORD': '',
-        'HOST': 'localhost',
+        'HOST': '127.0.0.1',
         'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'charset': 'utf8mb4',
+            'use_unicode': True,
+        },
+        'TEST': {
+            'CHARSET': 'utf8mb4',
+            'COLLATION': 'utf8mb4_unicode_ci',
+        }
     }
 }
 
